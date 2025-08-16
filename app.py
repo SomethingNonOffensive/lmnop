@@ -603,7 +603,7 @@ BASE = r"""
     <script src="https://cdn.tailwindcss.com"></script>
     <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}</script>
   </head>
-#codex/fix-mobile-formatting-and-add-file-uploads
+# codex/fix-mobile-formatting-and-add-file-uploads
   <body class=\"bg-slate-50 text-slate-900\">
     <nav class=\"bg-white border-b sticky top-0 z-10\">
       <div class=\"max-w-6xl mx-auto px-4 py-3 flex items-center gap-4\">
@@ -918,7 +918,7 @@ Tax ({{ est['tax_pct'] }}%): ${{ '%.2f' % taxed }}<br>
 """
 
 JOBS = r"""
-#codex/fix-mobile-formatting-and-add-file-uploads
+# codex/fix-mobile-formatting-and-add-file-uploads
 <div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Jobs</h1>
   {% if session['user']['role'] in ['manager','admin'] %}
   <a href=\"{{ url_for('jobs_new') }}\" class=\"ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm\">New Job</a>
@@ -938,7 +938,7 @@ JOBS = r"""
         <td>${{ '%.2f' % (r['budget_cost'] or 0) }}</td>
         {% endif %}
         <td></td></tr>
-#codex/fix-mobile-formatting-and-add-file-uploads
+# codex/fix-mobile-formatting-and-add-file-uploads
       {% else %}<tr><td colspan=\"{{ 7 if session['user']['role'] in ['manager','admin'] else 5 }}\" class=\"py-3 text-slate-500\">No jobs.</td></tr>{% endfor %}
     </tbody>
   </table>
@@ -980,7 +980,7 @@ JOB_NEW = r"""
 """
 
 JOB_VIEW = r"""
-#codex/fix-mobile-formatting-and-add-file-uploads
+# codex/fix-mobile-formatting-and-add-file-uploads
 <div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
 {% if session['user']['role'] in ['manager','admin'] %}
 <div class=\"grid md:grid-cols-3 gap-4\">
@@ -1030,7 +1030,7 @@ JOB_VIEW = r"""
 """
 
 TIMESHEETS = r"""
-#codex/fix-mobile-formatting-and-add-file-uploads
+# codex/fix-mobile-formatting-and-add-file-uploads
 <div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Timesheets</h1></div>
 <div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
   <form method=\"post\" action=\"{{ url_for('timesheets_create') }}\" class=\"grid md:grid-cols-6 gap-2\" enctype=\"multipart/form-data\">
@@ -1065,7 +1065,7 @@ TIMESHEETS = r"""
           {% endif %}
         </td>
       </tr>
-#codex/fix-mobile-formatting-and-add-file-uploads
+# codex/fix-mobile-formatting-and-add-file-uploads
       {% else %}<tr><td colspan=\"{{ 9 if session['user']['role'] in ['manager','admin'] else 7 }}\" class=\"py-3 text-slate-500\">No entries.</td></tr>{% endfor %}
 
     </tbody>
