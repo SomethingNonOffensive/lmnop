@@ -1,9 +1,10 @@
 from __future__ import annotations
-import os, sqlite3, csv, io, datetime as dt, json
+import os, sqlite3, csv, io, datetime as dt, json, uuid
 from functools import wraps
 from contextlib import closing
-from flask import Flask, g, request, redirect, url_for, make_response, abort, render_template_string as T, session
+from flask import Flask, g, request, redirect, url_for, make_response, abort, render_template_string as T, session, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 
 APP_NAME = "LMNOP"
@@ -17,6 +18,14 @@ app = Flask(__name__)
 app.secret_key = SECRET
 app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get('WTF_CSRF_SECRET_KEY', SECRET)
 csrf = CSRFProtect(app)
+
+# file uploads
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+TS_PHOTO_DIR = os.path.join(UPLOAD_FOLDER, 'timesheet_photos')
+JOB_FILE_DIR = os.path.join(UPLOAD_FOLDER, 'job_files')
+os.makedirs(TS_PHOTO_DIR, exist_ok=True)
+os.makedirs(JOB_FILE_DIR, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 ROLE_HIERARCHY = {'worker': 0, 'manager': 1, 'admin': 2}
 
@@ -95,10 +104,21 @@ CREATE TABLE IF NOT EXISTS timesheets (
   hours REAL NOT NULL,
   rate REAL NOT NULL DEFAULT 0,
   notes TEXT,
+  photo TEXT,
   approved INTEGER NOT NULL DEFAULT 0,
   created_by INTEGER,
   FOREIGN KEY(job_id) REFERENCES jobs(id) ON DELETE SET NULL,
   FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS job_files (
+  id INTEGER PRIMARY KEY,
+  job_id INTEGER NOT NULL,
+  filename TEXT NOT NULL,
+  original_name TEXT,
+  uploaded_by INTEGER,
+  FOREIGN KEY(job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+  FOREIGN KEY(uploaded_by) REFERENCES users(id) ON DELETE SET NULL
 );
 """
 
@@ -120,11 +140,56 @@ def init_db():
             s = stmt.strip()
             if s:
                 db.execute(s)
-        # bootstrap admin
+        # add new columns if missing
+        cols = [r['name'] for r in db.execute("PRAGMA table_info(timesheets)")]    
+        if 'photo' not in cols:
+            db.execute("ALTER TABLE timesheets ADD COLUMN photo TEXT")
+
+        # bootstrap users
         cur = db.execute("SELECT COUNT(*) c FROM users")
+        count = cur.fetchone()['c']
+        if count == 0:
+            db.execute(
+                "INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
+                ("admin", generate_password_hash(ADMIN_PASSWORD), 'admin'),
+            )
+            db.executemany(
+                "INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
+                [
+                    ("manager", generate_password_hash("manager"), "manager"),
+                    ("alice", generate_password_hash("alice"), "worker"),
+                    ("bob", generate_password_hash("bob"), "worker"),
+                ],
+            )
+        elif count == 1:
+            db.executemany(
+                "INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
+                [
+                    ("manager", generate_password_hash("manager"), "manager"),
+                    ("alice", generate_password_hash("alice"), "worker"),
+                    ("bob", generate_password_hash("bob"), "worker"),
+                ],
+            )
+
+        # sample clients and jobs
+        cur = db.execute("SELECT COUNT(*) c FROM clients")
         if cur.fetchone()['c'] == 0:
-            db.execute("INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
-                       ("admin", generate_password_hash(ADMIN_PASSWORD), 'admin'))
+            db.execute("INSERT INTO clients(name) VALUES('Acme Corp')")
+            db.execute("INSERT INTO clients(name) VALUES('Globex Inc')")
+        cur = db.execute("SELECT COUNT(*) c FROM jobs")
+        if cur.fetchone()['c'] == 0:
+            clients = db.execute("SELECT id FROM clients ORDER BY id").fetchall()
+            if clients:
+                db.execute(
+                    "INSERT INTO jobs(client_id,title,status) VALUES(?,?,?)",
+                    (clients[0]['id'], 'Site Prep', 'open'),
+                )
+            if len(clients) > 1:
+                db.execute(
+                    "INSERT INTO jobs(client_id,title,status) VALUES(?,?,?)",
+                    (clients[1]['id'], 'Concrete Pour', 'open'),
+                )
+
         db.commit()
 
 # ---------------- Auth
@@ -393,7 +458,7 @@ def jobs_create():
     return redirect(url_for('jobs'))
 
 @app.route('/jobs/<int:jid>')
-@require_role('manager')
+@require_role('worker')
 def job_view(jid):
     db = get_db()
     j = db.execute("SELECT j.*, c.name client_name FROM jobs j JOIN clients c ON c.id=j.client_id WHERE j.id=?", (jid,)).fetchone()
@@ -401,7 +466,8 @@ def job_view(jid):
     ts = db.execute("SELECT * FROM timesheets WHERE job_id=? ORDER BY day DESC", (jid,)).fetchall()
     actual_hours = sum([row['hours'] for row in ts])
     actual_cost = sum([row['hours']*row['rate'] for row in ts])
-    return T(BASE, body=T(JOB_VIEW, j=j, ts=ts, actual_hours=actual_hours, actual_cost=actual_cost))
+    files = db.execute("SELECT * FROM job_files WHERE job_id=? ORDER BY id", (jid,)).fetchall()
+    return T(BASE, body=T(JOB_VIEW, j=j, ts=ts, actual_hours=actual_hours, actual_cost=actual_cost, files=files))
 
 # ---- Timesheets
 @app.route('/timesheets')
@@ -414,8 +480,15 @@ def timesheets():
 @app.route('/timesheets/create', methods=['POST'])
 def timesheets_create():
     f = request.form
-    get_db().execute("INSERT INTO timesheets(employee,job_id,day,hours,rate,notes,created_by) VALUES(?,?,?,?,?,?,?)",
-                     (f['employee'], int(f.get('job_id') or 0) or None, f['day'], float(f['hours']), float(f.get('rate',0)), f.get('notes'), session['user']['id']))
+    file = request.files.get('photo')
+    photo = None
+    if file and file.filename:
+        filename = secure_filename(f"{uuid.uuid4().hex}_{file.filename}")
+        file.save(os.path.join(TS_PHOTO_DIR, filename))
+        photo = filename
+    rate = float(f.get('rate',0)) if session['user']['role'] in ['manager','admin'] else 0
+    get_db().execute("INSERT INTO timesheets(employee,job_id,day,hours,rate,notes,photo,created_by) VALUES(?,?,?,?,?,?,?,?)",
+                     (f['employee'], int(f.get('job_id') or 0) or None, f['day'], float(f['hours']), rate, f.get('notes'), photo, session['user']['id']))
     get_db().commit()
     return redirect(url_for('timesheets'))
 
@@ -446,6 +519,30 @@ def timesheets_csv():
     resp.headers['Content-Type'] = 'text/csv'
     resp.headers['Content-Disposition'] = 'attachment; filename=timesheets.csv'
     return resp
+
+@app.route('/timesheet_photos/<path:filename>')
+@require_role('worker')
+def timesheet_photo(filename):
+    return send_from_directory(TS_PHOTO_DIR, filename)
+
+@app.route('/job_files/<path:filename>')
+@require_role('worker')
+def job_file(filename):
+    return send_from_directory(JOB_FILE_DIR, filename)
+
+@app.route('/jobs/<int:jid>/files/upload', methods=['POST'])
+@require_role('manager')
+def job_file_upload(jid):
+    file = request.files.get('file')
+    if not file or not file.filename:
+        abort(400)
+    filename = secure_filename(f"{jid}_{uuid.uuid4().hex}_{file.filename}")
+    file.save(os.path.join(JOB_FILE_DIR, filename))
+    db = get_db()
+    db.execute("INSERT INTO job_files(job_id, filename, original_name, uploaded_by) VALUES(?,?,?,?)",
+               (jid, filename, file.filename, session['user']['id']))
+    db.commit()
+    return redirect(url_for('job_view', jid=jid))
 
 # ---------------- PWA
 @app.route('/manifest.webmanifest')
@@ -506,18 +603,21 @@ BASE = r"""
     <script src="https://cdn.tailwindcss.com"></script>
     <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}</script>
   </head>
-  <body class="bg-slate-50 text-slate-900">
-    <nav class="bg-white border-b sticky top-0 z-10">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
-        <a href="{{ url_for('dashboard') }}" class="text-xl font-bold">{{ APP_NAME }}</a>
-        <div class="flex gap-4 text-sm">
-          {% if session.get('user') and session['user']['role'] in ['manager','admin'] %}
-          <a class="hover:underline" href="{{ url_for('clients') }}">Clients</a>
-          <a class="hover:underline" href="{{ url_for('catalog') }}">Catalog</a>
-          <a class="hover:underline" href="{{ url_for('estimates') }}">Estimates</a>
-          <a class="hover:underline" href="{{ url_for('jobs') }}">Jobs</a>
+#codex/fix-mobile-formatting-and-add-file-uploads
+  <body class=\"bg-slate-50 text-slate-900\">
+    <nav class=\"bg-white border-b sticky top-0 z-10\">
+      <div class=\"max-w-6xl mx-auto px-4 py-3 flex items-center gap-4\">
+        <a href=\"{{ url_for('dashboard') }}\" class=\"text-xl font-bold\">{{ APP_NAME }}</a>
+        <div class=\"flex gap-4 text-sm flex-wrap\">
+          {% if session.get('user') %}
+            {% if session['user']['role'] in ['manager','admin'] %}
+            <a class=\"hover:underline\" href=\"{{ url_for('clients') }}\">Clients</a>
+            <a class=\"hover:underline\" href=\"{{ url_for('catalog') }}\">Catalog</a>
+            <a class=\"hover:underline\" href=\"{{ url_for('estimates') }}\">Estimates</a>
+            {% endif %}
+            <a class=\"hover:underline\" href=\"{{ url_for('jobs') }}\">Jobs</a>
+            <a class=\"hover:underline\" href=\"{{ url_for('timesheets') }}\">Timesheets</a>
           {% endif %}
-          <a class="hover:underline" href="{{ url_for('timesheets') }}">Timesheets</a>
         </div>
         <div class="ml-auto flex gap-4 items-center">
           {% if session.get('user') %}
@@ -818,22 +918,28 @@ Tax ({{ est['tax_pct'] }}%): ${{ '%.2f' % taxed }}<br>
 """
 
 JOBS = r"""
-<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Jobs</h1>
-  <a href="{{ url_for('jobs_new') }}" class="ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm">New Job</a>
+#codex/fix-mobile-formatting-and-add-file-uploads
+<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Jobs</h1>
+  {% if session['user']['role'] in ['manager','admin'] %}
+  <a href=\"{{ url_for('jobs_new') }}\" class=\"ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm\">New Job</a>
+  {% endif %}
 </div>
-<div class="bg-white rounded-2xl p-4 shadow">
-  <table class="w-full text-sm">
-    <thead><tr class="text-left text-slate-500"><th>#</th><th>Title</th><th>Client</th><th>Status</th><th>Budget Hrs</th><th>Budget $</th><th></th></tr></thead>
+<div class=\"bg-white rounded-2xl p-4 shadow overflow-x-auto\">
+  <table class=\"w-full text-sm\">
+    <thead><tr class=\"text-left text-slate-500\"><th>#</th><th>Title</th><th>Client</th><th>Status</th>{% if session['user']['role'] in ['manager','admin'] %}<th>Budget Hrs</th><th>Budget $</th>{% endif %}<th></th></tr></thead>
     <tbody>
       {% for r in rows %}
         <tr class="border-t"><td class="py-2">{{ r['id'] }}</td>
         <td><a href="{{ url_for('job_view', jid=r['id']) }}" class="hover:underline">{{ r['title'] }}</a></td>
         <td>{{ r['client_name'] }}</td>
         <td>{{ r['status'] }}</td>
+        {% if session['user']['role'] in ['manager','admin'] %}
         <td>{{ r['budget_hours'] }}</td>
         <td>${{ '%.2f' % (r['budget_cost'] or 0) }}</td>
+        {% endif %}
         <td></td></tr>
-      {% else %}<tr><td colspan="7" class="py-3 text-slate-500">No jobs.</td></tr>{% endfor %}
+#codex/fix-mobile-formatting-and-add-file-uploads
+      {% else %}<tr><td colspan=\"{{ 7 if session['user']['role'] in ['manager','admin'] else 5 }}\" class=\"py-3 text-slate-500\">No jobs.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
@@ -874,18 +980,20 @@ JOB_NEW = r"""
 """
 
 JOB_VIEW = r"""
-<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
-<div class="grid md:grid-cols-3 gap-4">
-  <div class="md:col-span-2 bg-white rounded-2xl p-4 shadow">
-    <h2 class="font-semibold mb-2">Timesheets</h2>
-    <table class="w-full text-sm">
-      <thead><tr class="text-left text-slate-500"><th>Employee</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Approved</th><th></th></tr></thead>
+#codex/fix-mobile-formatting-and-add-file-uploads
+<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
+{% if session['user']['role'] in ['manager','admin'] %}
+<div class=\"grid md:grid-cols-3 gap-4\">
+  <div class=\"md:col-span-2 bg-white rounded-2xl p-4 shadow overflow-x-auto\">
+    <h2 class=\"font-semibold mb-2\">Timesheets</h2>
+    <table class=\"w-full text-sm\">
+      <thead><tr class=\"text-left text-slate-500\"><th>Employee</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Photo</th><th>Approved</th><th></th></tr></thead>
       <tbody>
         {% for t in ts %}
-        <tr class="border-t"><td class="py-2">{{ t['employee'] }}</td><td>{{ t['day'] }}</td><td>{{ t['hours'] }}</td><td>${{ '%.2f' % t['rate'] }}</td><td>${{ '%.2f' % (t['hours']*t['rate']) }}</td><td>{{ 'yes' if t['approved'] else 'no' }}</td>
-          <td class="text-right">{% if session['user']['role'] in ['manager','admin'] %}<form method="post" action="{{ url_for('timesheets_delete', tid=t['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form>{% endif %}</td>
+        <tr class=\"border-t\"><td class=\"py-2\">{{ t['employee'] }}</td><td>{{ t['day'] }}</td><td>{{ t['hours'] }}</td><td>${{ '%.2f' % t['rate'] }}</td><td>${{ '%.2f' % (t['hours']*t['rate']) }}</td><td>{% if t['photo'] %}<a class=\"text-blue-600 hover:underline\" href=\"{{ url_for('timesheet_photo', filename=t['photo']) }}\" target=\"_blank\">View</a>{% else %}—{% endif %}</td><td>{{ 'yes' if t['approved'] else 'no' }}</td>
+          <td class=\"text-right\"><form method=\"post\" action=\"{{ url_for('timesheets_delete', tid=t['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form></td>
         </tr>
-        {% else %}<tr><td colspan="7" class="py-3 text-slate-500">No entries yet.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan=\"8\" class=\"py-3 text-slate-500\">No entries yet.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -901,32 +1009,54 @@ JOB_VIEW = r"""
     </div>
   </div>
 </div>
+{% endif %}
+<div class=\"bg-white rounded-2xl p-4 shadow mt-4\">
+  <h2 class=\"font-semibold mb-2\">Documents</h2>
+  <ul class=\"text-sm\">
+    {% for f in files %}
+      <li><a class=\"text-blue-600 hover:underline\" href=\"{{ url_for('job_file', filename=f['filename']) }}\" target=\"_blank\">{{ f['original_name'] }}</a></li>
+    {% else %}
+      <li class=\"text-slate-500\">No documents.</li>
+    {% endfor %}
+  </ul>
+  {% if session['user']['role'] in ['manager','admin'] %}
+  <form class=\"mt-2\" method=\"post\" action=\"{{ url_for('job_file_upload', jid=j['id']) }}\" enctype=\"multipart/form-data\">
+    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
+    <input type=\"file\" name=\"file\" class=\"text-sm\" required>
+    <button class=\"bg-slate-900 text-white rounded-xl px-3 py-1 text-sm\">Upload</button>
+  </form>
+  {% endif %}
+</div>
 """
 
 TIMESHEETS = r"""
-<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Timesheets</h1></div>
-<div class="bg-white rounded-2xl p-4 shadow mb-4">
-  <form method="post" action="{{ url_for('timesheets_create') }}" class="grid md:grid-cols-6 gap-2">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input class="border rounded-xl p-2" name="employee" placeholder="Employee" required>
-    <select class="border rounded-xl p-2" name="job_id">
-      <option value="">No job</option>
-      {% for j in jobs %}<option value="{{ j['id'] }}">{{ j['title'] }}</option>{% endfor %}
+#codex/fix-mobile-formatting-and-add-file-uploads
+<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Timesheets</h1></div>
+<div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
+  <form method=\"post\" action=\"{{ url_for('timesheets_create') }}\" class=\"grid md:grid-cols-6 gap-2\" enctype=\"multipart/form-data\">
+    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
+    <input class=\"border rounded-xl p-2\" name=\"employee\" placeholder=\"Employee\" required>
+    <select class=\"border rounded-xl p-2\" name=\"job_id\">
+      <option value=\"\">No job</option>
+      {% for j in jobs %}<option value=\"{{ j['id'] }}\">{{ j['title'] }}</option>{% endfor %}
     </select>
-    <input class="border rounded-xl p-2" type="date" name="day" value="{{ today }}"> 
-    <input class="border rounded-xl p-2" type="number" step="0.1" name="hours" placeholder="8"> 
-    <input class="border rounded-xl p-2" type="number" step="0.01" name="rate" placeholder="35"> 
-    <input class="border rounded-xl p-2 md:col-span-5" name="notes" placeholder="Notes"> 
-    <button class="bg-slate-900 text-white rounded-xl px-4">Add</button>
+    <input class=\"border rounded-xl p-2\" type=\"date\" name=\"day\" value=\"{{ today }}\">
+    <input class=\"border rounded-xl p-2\" type=\"number\" step=\"0.1\" name=\"hours\" placeholder=\"8\">
+    {% if session['user']['role'] in ['manager','admin'] %}
+    <input class=\"border rounded-xl p-2\" type=\"number\" step=\"0.01\" name=\"rate\" placeholder=\"35\">
+    {% endif %}
+    <input class=\"border rounded-xl p-2 md:col-span-5\" name=\"notes\" placeholder=\"Notes\">
+    <input type=\"file\" name=\"photo\" accept=\"image/*\" class=\"md:col-span-5 text-sm\">
+    <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
   </form>
 </div>
-<div class="bg-white rounded-2xl p-4 shadow">
-  <table class="w-full text-sm">
-    <thead><tr class="text-left text-slate-500"><th>Employee</th><th>Job</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Approved</th><th></th></tr></thead>
+<div class=\"bg-white rounded-2xl p-4 shadow overflow-x-auto\">
+  <table class=\"w-full text-sm\">
+    <thead><tr class=\"text-left text-slate-500\"><th>Employee</th><th>Job</th><th>Date</th><th>Hours</th>{% if session['user']['role'] in ['manager','admin'] %}<th>Rate</th><th>$</th>{% endif %}<th>Photo</th><th>Approved</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr class="border-t"><td class="py-2">{{ r['employee'] }}</td><td>{{ r['job_title'] or '' }}</td><td>{{ r['day'] }}</td><td>{{ r['hours'] }}</td><td>${{ '%.2f' % r['rate'] }}</td><td>${{ '%.2f' % (r['hours']*r['rate']) }}</td><td>{{ 'yes' if r['approved'] else 'no' }}</td>
-        <td class="text-right flex gap-2 justify-end">
+      <tr class=\"border-t\"><td class=\"py-2\">{{ r['employee'] }}</td><td>{% if r['job_id'] %}<a href=\"{{ url_for('job_view', jid=r['job_id']) }}\" class=\"hover:underline\">{{ r['job_title'] }}</a>{% endif %}</td><td>{{ r['day'] }}</td><td>{{ r['hours'] }}</td>{% if session['user']['role'] in ['manager','admin'] %}<td>${{ '%.2f' % r['rate'] }}</td><td>${{ '%.2f' % (r['hours']*r['rate']) }}</td>{% endif %}<td>{% if r['photo'] %}<a class=\"text-blue-600 hover:underline\" href=\"{{ url_for('timesheet_photo', filename=r['photo']) }}\" target=\"_blank\">View</a>{% else %}—{% endif %}</td><td>{{ 'yes' if r['approved'] else 'no' }}</td>
+        <td class=\"text-right flex gap-2 justify-end\">
           {% if session['user']['role'] in ['manager','admin'] and not r['approved'] %}
             <form method="post" action="{{ url_for('timesheets_approve', tid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-green-600 text-sm">Approve</button></form>
           {% endif %}
@@ -935,7 +1065,9 @@ TIMESHEETS = r"""
           {% endif %}
         </td>
       </tr>
-      {% else %}<tr><td colspan="8" class="py-3 text-slate-500">No entries.</td></tr>{% endfor %}
+#codex/fix-mobile-formatting-and-add-file-uploads
+      {% else %}<tr><td colspan=\"{{ 9 if session['user']['role'] in ['manager','admin'] else 7 }}\" class=\"py-3 text-slate-500\">No entries.</td></tr>{% endfor %}
+
     </tbody>
   </table>
   <div class="mt-3">
