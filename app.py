@@ -1,7 +1,15 @@
 from __future__ import annotations
-import os, sqlite3, csv, io, datetime as dt, json, uuid
+
+import csv
+import datetime as dt
+import io
+import json
+import os
+import sqlite3
+import time
+import uuid
 from functools import wraps
-from contextlib import closing
+
 from flask import Flask, g, request, redirect, url_for, make_response, abort, render_template_string as T, session, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -47,7 +55,8 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'worker' -- worker|manager|admin
+  role TEXT NOT NULL DEFAULT 'worker', -- worker|manager|admin
+  default_rate REAL NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY,
@@ -135,39 +144,44 @@ def close_db(exception=None):
         db.close()
 
 def init_db():
-    with closing(get_db()) as db:
+    """Initialize database tables and seed demo data."""
+    with sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES) as db:
+        db.row_factory = sqlite3.Row
         for stmt in SCHEMA.split(';'):
             s = stmt.strip()
             if s:
                 db.execute(s)
         # add new columns if missing
-        cols = [r['name'] for r in db.execute("PRAGMA table_info(timesheets)")]    
+        cols = [r['name'] for r in db.execute("PRAGMA table_info(timesheets)")]
         if 'photo' not in cols:
             db.execute("ALTER TABLE timesheets ADD COLUMN photo TEXT")
+        ucols = [r['name'] for r in db.execute("PRAGMA table_info(users)")]
+        if 'default_rate' not in ucols:
+            db.execute("ALTER TABLE users ADD COLUMN default_rate REAL NOT NULL DEFAULT 0")
 
         # bootstrap users
         cur = db.execute("SELECT COUNT(*) c FROM users")
         count = cur.fetchone()['c']
         if count == 0:
             db.execute(
-                "INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
-                ("admin", generate_password_hash(ADMIN_PASSWORD), 'admin'),
+                "INSERT INTO users(username,password_hash,role,default_rate) VALUES(?,?,?,?)",
+                ("admin", generate_password_hash(ADMIN_PASSWORD), 'admin', 0),
             )
             db.executemany(
-                "INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
+                "INSERT INTO users(username,password_hash,role,default_rate) VALUES(?,?,?,?)",
                 [
-                    ("manager", generate_password_hash("manager"), "manager"),
-                    ("alice", generate_password_hash("alice"), "worker"),
-                    ("bob", generate_password_hash("bob"), "worker"),
+                    ("manager", generate_password_hash("manager"), "manager", 40),
+                    ("alice", generate_password_hash("alice"), "worker", 25),
+                    ("bob", generate_password_hash("bob"), "worker", 30),
                 ],
             )
         elif count == 1:
             db.executemany(
-                "INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
+                "INSERT INTO users(username,password_hash,role,default_rate) VALUES(?,?,?,?)",
                 [
-                    ("manager", generate_password_hash("manager"), "manager"),
-                    ("alice", generate_password_hash("alice"), "worker"),
-                    ("bob", generate_password_hash("bob"), "worker"),
+                    ("manager", generate_password_hash("manager"), "manager", 40),
+                    ("alice", generate_password_hash("alice"), "worker", 25),
+                    ("bob", generate_password_hash("bob"), "worker", 30),
                 ],
             )
 
@@ -192,6 +206,10 @@ def init_db():
 
         db.commit()
 
+# initialize database when module is imported
+with app.app_context():
+    init_db()
+
 # ---------------- Auth
 @app.before_request
 def auth_guard():
@@ -204,14 +222,32 @@ def auth_guard():
 @app.route('/login', methods=['GET','POST'])
 def login():
     err = None
-    if request.method == 'POST':
+    now = time.time()
+    locked_until = session.get('lockout_until')
+    if locked_until:
+        if now < locked_until:
+            remaining = int(locked_until - now)
+            err = f'Too many failed attempts. Try again in {remaining}s.'
+        else:
+            session.pop('lockout_until', None)
+            session.pop('login_attempts', None)
+    if not err and request.method == 'POST':
         u = request.form.get('username','').strip()
         p = request.form.get('password','').strip()
         row = get_db().execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if row and check_password_hash(row['password_hash'], p):
             session['user'] = {'id': row['id'], 'username': row['username'], 'role': row['role']}
+            session.pop('login_attempts', None)
+            session.pop('lockout_until', None)
             return redirect(url_for('dashboard'))
         err = 'Invalid credentials'
+        attempts = session.get('login_attempts', 0) + 1
+        session['login_attempts'] = attempts
+        app.logger.warning("Failed login attempt for '%s' from %s", u, request.remote_addr)
+        if attempts >= 5:
+            session['lockout_until'] = now + 30
+        else:
+            time.sleep(min(attempts, 5))
     return T(BASE, body=T(LOGIN, err=err))
 
 @app.route('/logout')
@@ -473,23 +509,54 @@ def job_view(jid):
 @app.route('/timesheets')
 def timesheets():
     db = get_db()
-    rows = db.execute("SELECT t.*, j.title job_title FROM timesheets t LEFT JOIN jobs j ON j.id=t.job_id ORDER BY day DESC, id DESC").fetchall()
-    jobs = db.execute("SELECT id,title FROM jobs ORDER BY title").fetchall()
-    return T(BASE, body=T(TIMESHEETS, rows=rows, jobs=jobs, today=today()))
+    show_all = request.args.get('all') == '1' and session['user']['role'] in ['manager','admin']
+    if show_all:
+        rows = db.execute("SELECT t.*, j.title job_title FROM timesheets t LEFT JOIN jobs j ON j.id=t.job_id ORDER BY day DESC, id DESC").fetchall()
+    else:
+        rows = db.execute(
+            "SELECT t.*, j.title job_title FROM timesheets t LEFT JOIN jobs j ON j.id=t.job_id WHERE t.employee=? ORDER BY day DESC, id DESC",
+            (session['user']['username'],)
+        ).fetchall()
+    jobs = db.execute("SELECT id,title FROM jobs WHERE status IN ('open','in_progress') ORDER BY title").fetchall()
+    users = db.execute("SELECT id,username,default_rate FROM users ORDER BY username").fetchall()
+    return T(BASE, body=T(TIMESHEETS, rows=rows, jobs=jobs, users=users, today=today(), show_all=show_all))
 
 @app.route('/timesheets/create', methods=['POST'])
 def timesheets_create():
     f = request.form
+    db = get_db()
     file = request.files.get('photo')
     photo = None
-    if file and file.filename:
-        filename = secure_filename(f"{uuid.uuid4().hex}_{file.filename}")
-        file.save(os.path.join(TS_PHOTO_DIR, filename))
-        photo = filename
-    rate = float(f.get('rate',0)) if session['user']['role'] in ['manager','admin'] else 0
-    get_db().execute("INSERT INTO timesheets(employee,job_id,day,hours,rate,notes,photo,created_by) VALUES(?,?,?,?,?,?,?,?)",
-                     (f['employee'], int(f.get('job_id') or 0) or None, f['day'], float(f['hours']), rate, f.get('notes'), photo, session['user']['id']))
-    get_db().commit()
+    try:
+        uid = int(f['employee_id'])
+        user_row = db.execute("SELECT username, default_rate FROM users WHERE id=?", (uid,)).fetchone()
+        if not user_row:
+            abort(400)
+        if file and file.filename:
+            filename = secure_filename(f"{uuid.uuid4().hex}_{file.filename}")
+            file.save(os.path.join(TS_PHOTO_DIR, filename))
+            photo = filename
+        rate = 0
+        if session['user']['role'] in ['manager','admin']:
+            rate = f.get('rate') or user_row['default_rate']
+            rate = float(rate or 0)
+        db.execute(
+            "INSERT INTO timesheets(employee,job_id,day,hours,rate,notes,photo,created_by) VALUES(?,?,?,?,?,?,?,?)",
+            (
+                user_row['username'],
+                int(f.get('job_id') or 0) or None,
+                f['day'],
+                float(f['hours']),
+                rate,
+                f.get('notes'),
+                photo,
+                session['user']['id'],
+            ),
+        )
+        db.commit()
+    except Exception as e:
+        app.logger.error("Failed to create timesheet: %s", e)
+        abort(500)
     return redirect(url_for('timesheets'))
 
 @app.route('/timesheets/<int:tid>/approve', methods=['POST'])
@@ -536,12 +603,18 @@ def job_file_upload(jid):
     file = request.files.get('file')
     if not file or not file.filename:
         abort(400)
-    filename = secure_filename(f"{jid}_{uuid.uuid4().hex}_{file.filename}")
-    file.save(os.path.join(JOB_FILE_DIR, filename))
-    db = get_db()
-    db.execute("INSERT INTO job_files(job_id, filename, original_name, uploaded_by) VALUES(?,?,?,?)",
-               (jid, filename, file.filename, session['user']['id']))
-    db.commit()
+    try:
+        filename = secure_filename(f"{jid}_{uuid.uuid4().hex}_{file.filename}")
+        file.save(os.path.join(JOB_FILE_DIR, filename))
+        db = get_db()
+        db.execute(
+            "INSERT INTO job_files(job_id, filename, original_name, uploaded_by) VALUES(?,?,?,?)",
+            (jid, filename, file.filename, session['user']['id']),
+        )
+        db.commit()
+    except Exception as e:
+        app.logger.error("Failed to upload job file for job %s: %s", jid, e)
+        abort(500)
     return redirect(url_for('job_view', jid=jid))
 
 # ---------------- PWA
@@ -603,7 +676,6 @@ BASE = r"""
     <script src="https://cdn.tailwindcss.com"></script>
     <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}</script>
   </head>
-#codex/fix-mobile-formatting-and-add-file-uploads
   <body class=\"bg-slate-50 text-slate-900\">
     <nav class=\"bg-white border-b sticky top-0 z-10\">
       <div class=\"max-w-6xl mx-auto px-4 py-3 flex items-center gap-4\">
@@ -918,7 +990,6 @@ Tax ({{ est['tax_pct'] }}%): ${{ '%.2f' % taxed }}<br>
 """
 
 JOBS = r"""
-#codex/fix-mobile-formatting-and-add-file-uploads
 <div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Jobs</h1>
   {% if session['user']['role'] in ['manager','admin'] %}
   <a href=\"{{ url_for('jobs_new') }}\" class=\"ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm\">New Job</a>
@@ -938,7 +1009,6 @@ JOBS = r"""
         <td>${{ '%.2f' % (r['budget_cost'] or 0) }}</td>
         {% endif %}
         <td></td></tr>
-#codex/fix-mobile-formatting-and-add-file-uploads
       {% else %}<tr><td colspan=\"{{ 7 if session['user']['role'] in ['manager','admin'] else 5 }}\" class=\"py-3 text-slate-500\">No jobs.</td></tr>{% endfor %}
     </tbody>
   </table>
@@ -980,7 +1050,6 @@ JOB_NEW = r"""
 """
 
 JOB_VIEW = r"""
-#codex/fix-mobile-formatting-and-add-file-uploads
 <div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
 {% if session['user']['role'] in ['manager','admin'] %}
 <div class=\"grid md:grid-cols-3 gap-4\">
@@ -1030,12 +1099,13 @@ JOB_VIEW = r"""
 """
 
 TIMESHEETS = r"""
-#codex/fix-mobile-formatting-and-add-file-uploads
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Timesheets</h1></div>
+<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold flex-1\">Timesheets</h1>{% if session['user']['role'] in ['manager','admin'] %}{% if show_all %}<a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('timesheets') }}\">Show Mine</a>{% else %}<a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('timesheets', all=1) }}\">Show All</a>{% endif %}{% endif %}</div>
 <div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
-  <form method=\"post\" action=\"{{ url_for('timesheets_create') }}\" class=\"grid md:grid-cols-6 gap-2\" enctype=\"multipart/form-data\">
+  <form id=\"ts-form\" method=\"post\" action=\"{{ url_for('timesheets_create') }}\" class=\"grid md:grid-cols-6 gap-2\" enctype=\"multipart/form-data\">
     <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <input class=\"border rounded-xl p-2\" name=\"employee\" placeholder=\"Employee\" required>
+    <select class=\"border rounded-xl p-2\" name=\"employee_id\" required>
+      {% for u in users %}<option value=\"{{ u['id'] }}\">{{ u['username'] }}</option>{% endfor %}
+    </select>
     <select class=\"border rounded-xl p-2\" name=\"job_id\">
       <option value=\"\">No job</option>
       {% for j in jobs %}<option value=\"{{ j['id'] }}\">{{ j['title'] }}</option>{% endfor %}
@@ -1045,9 +1115,15 @@ TIMESHEETS = r"""
     {% if session['user']['role'] in ['manager','admin'] %}
     <input class=\"border rounded-xl p-2\" type=\"number\" step=\"0.01\" name=\"rate\" placeholder=\"35\">
     {% endif %}
-    <input class=\"border rounded-xl p-2 md:col-span-5\" name=\"notes\" placeholder=\"Notes\">
+    <input class=\"border rounded-xl p-2 md:col-span-5\" name=\"notes\" list=\"notes-list\" placeholder=\"Notes\">
+    <datalist id=\"notes-list\">
+      <option value=\"Site prep\"><option value=\"Concrete pour\"><option value=\"Equipment maintenance\">
+    </datalist>
     <input type=\"file\" name=\"photo\" accept=\"image/*\" class=\"md:col-span-5 text-sm\">
-    <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
+    <div class=\"flex gap-2\">
+      <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
+      <button type=\"button\" id=\"quick-add-today\" class=\"bg-slate-600 text-white rounded-xl px-4\">Add for Today</button>
+    </div>
   </form>
 </div>
 <div class=\"bg-white rounded-2xl p-4 shadow overflow-x-auto\">
@@ -1058,27 +1134,63 @@ TIMESHEETS = r"""
       <tr class=\"border-t\"><td class=\"py-2\">{{ r['employee'] }}</td><td>{% if r['job_id'] %}<a href=\"{{ url_for('job_view', jid=r['job_id']) }}\" class=\"hover:underline\">{{ r['job_title'] }}</a>{% endif %}</td><td>{{ r['day'] }}</td><td>{{ r['hours'] }}</td>{% if session['user']['role'] in ['manager','admin'] %}<td>${{ '%.2f' % r['rate'] }}</td><td>${{ '%.2f' % (r['hours']*r['rate']) }}</td>{% endif %}<td>{% if r['photo'] %}<a class=\"text-blue-600 hover:underline\" href=\"{{ url_for('timesheet_photo', filename=r['photo']) }}\" target=\"_blank\">View</a>{% else %}—{% endif %}</td><td>{{ 'yes' if r['approved'] else 'no' }}</td>
         <td class=\"text-right flex gap-2 justify-end\">
           {% if session['user']['role'] in ['manager','admin'] and not r['approved'] %}
-            <form method="post" action="{{ url_for('timesheets_approve', tid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-green-600 text-sm">Approve</button></form>
+            <form method=\"post\" action=\"{{ url_for('timesheets_approve', tid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-green-600 text-sm\">Approve</button></form>
           {% endif %}
           {% if session['user']['role'] in ['manager','admin'] %}
-            <form method="post" action="{{ url_for('timesheets_delete', tid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form>
+            <form method=\"post\" action=\"{{ url_for('timesheets_delete', tid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form>
           {% endif %}
         </td>
       </tr>
-#codex/fix-mobile-formatting-and-add-file-uploads
       {% else %}<tr><td colspan=\"{{ 9 if session['user']['role'] in ['manager','admin'] else 7 }}\" class=\"py-3 text-slate-500\">No entries.</td></tr>{% endfor %}
 
     </tbody>
   </table>
-  <div class="mt-3">
+  <div class=\"mt-3\">
     {% if session['user']['role'] in ['manager','admin'] %}
-    <a class="text-sm text-slate-500 hover:underline" href="{{ url_for('timesheets_csv') }}">Export CSV</a>
+    <a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('timesheets_csv') }}\">Export CSV</a>
     {% endif %}
   </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const dateInput = document.querySelector('input[type=\"date\"][name=\"day\"]');
+  if(dateInput && !dateInput.value){ dateInput.value = new Date().toISOString().slice(0,10); }
+  const form = document.getElementById('ts-form');
+  const jobSelect = document.querySelector('select[name=\"job_id\"]');
+  const userSelect = document.querySelector('select[name=\"employee_id\"]');
+  const rateInput = document.querySelector('input[name=\"rate\"]');
+  const notesInput = document.querySelector('input[name=\"notes\"]');
+  const userRates = { {% for u in users %}\"{{ u['id'] }}\": {{ u['default_rate'] or 0 }},{% endfor %} };
+  if(jobSelect){
+    const lastJob = localStorage.getItem('lastJobId');
+    if(lastJob) jobSelect.value = lastJob;
+    jobSelect.addEventListener('change', ()=>localStorage.setItem('lastJobId', jobSelect.value));
+  }
+  if(userSelect){
+    const lastUser = localStorage.getItem('lastEmployeeId');
+    if(lastUser) userSelect.value = lastUser;
+    const updateRate = ()=>{ if(rateInput) rateInput.value = userRates[userSelect.value] || ''; };
+    userSelect.addEventListener('change', function(){
+      localStorage.setItem('lastEmployeeId', this.value);
+      updateRate();
+    });
+    updateRate();
+  }
+  if(notesInput){
+    const lastNotes = localStorage.getItem('lastNotes');
+    if(lastNotes) notesInput.value = lastNotes;
+    notesInput.addEventListener('change', ()=>localStorage.setItem('lastNotes', notesInput.value));
+  }
+  const quickBtn = document.getElementById('quick-add-today');
+  if(quickBtn){
+    quickBtn.addEventListener('click', function(){
+      if(dateInput) dateInput.value = new Date().toISOString().slice(0,10);
+      form.submit();
+    });
+  }
+});
+</script>
 """
 
 if __name__ == '__main__':
-    with app.app_context():
-        init_db()
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
