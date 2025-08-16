@@ -1,4 +1,3 @@
-
 import datetime as dt
 import json
 import sqlite3
@@ -190,6 +189,7 @@ def manifest():
         "start_url": "/",
         "background_color": "#ffffff",
         "icons": []
+
     resp = make_response(json.dumps(data))
     return resp
 @app.route('/sw.js')
