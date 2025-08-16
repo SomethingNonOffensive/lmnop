@@ -1,3 +1,8 @@
-uploads/
-*.db
+.venv/
+.env
 __pycache__/
+*.pyc
+uploads/
+lmnop.db
+codex.patch
+start
