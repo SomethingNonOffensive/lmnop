@@ -1,7 +1,6 @@
 from __future__ import annotations
-import os, sqlite3, csv, io, datetime as dt, json, uuid
+import os, sqlite3, csv, io, datetime as dt, json, uuid, time
 from functools import wraps
-from contextlib import closing
 from flask import Flask, g, request, redirect, url_for, make_response, abort, render_template_string as T, session, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -135,13 +134,15 @@ def close_db(exception=None):
         db.close()
 
 def init_db():
-    with closing(get_db()) as db:
+    """Initialize database tables and seed demo data."""
+    with sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES) as db:
+        db.row_factory = sqlite3.Row
         for stmt in SCHEMA.split(';'):
             s = stmt.strip()
             if s:
                 db.execute(s)
         # add new columns if missing
-        cols = [r['name'] for r in db.execute("PRAGMA table_info(timesheets)")]    
+        cols = [r['name'] for r in db.execute("PRAGMA table_info(timesheets)")]
         if 'photo' not in cols:
             db.execute("ALTER TABLE timesheets ADD COLUMN photo TEXT")
 
@@ -192,6 +193,10 @@ def init_db():
 
         db.commit()
 
+# initialize database when module is imported
+with app.app_context():
+    init_db()
+
 # ---------------- Auth
 @app.before_request
 def auth_guard():
@@ -204,14 +209,32 @@ def auth_guard():
 @app.route('/login', methods=['GET','POST'])
 def login():
     err = None
-    if request.method == 'POST':
+    now = time.time()
+    locked_until = session.get('lockout_until')
+    if locked_until:
+        if now < locked_until:
+            remaining = int(locked_until - now)
+            err = f'Too many failed attempts. Try again in {remaining}s.'
+        else:
+            session.pop('lockout_until', None)
+            session.pop('login_attempts', None)
+    if not err and request.method == 'POST':
         u = request.form.get('username','').strip()
         p = request.form.get('password','').strip()
         row = get_db().execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if row and check_password_hash(row['password_hash'], p):
             session['user'] = {'id': row['id'], 'username': row['username'], 'role': row['role']}
+            session.pop('login_attempts', None)
+            session.pop('lockout_until', None)
             return redirect(url_for('dashboard'))
         err = 'Invalid credentials'
+        attempts = session.get('login_attempts', 0) + 1
+        session['login_attempts'] = attempts
+        app.logger.warning("Failed login attempt for '%s' from %s", u, request.remote_addr)
+        if attempts >= 5:
+            session['lockout_until'] = now + 30
+        else:
+            time.sleep(min(attempts, 5))
     return T(BASE, body=T(LOGIN, err=err))
 
 @app.route('/logout')
@@ -1079,6 +1102,4 @@ TIMESHEETS = r"""
 """
 
 if __name__ == '__main__':
-    with app.app_context():
-        init_db()
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
