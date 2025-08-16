@@ -676,19 +676,19 @@ BASE = r"""
     <script src="https://cdn.tailwindcss.com"></script>
     <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}</script>
   </head>
-  <body class=\"bg-slate-50 text-slate-900\">
-    <nav class=\"bg-white border-b sticky top-0 z-10\">
-      <div class=\"max-w-6xl mx-auto px-4 py-3 flex items-center gap-4\">
-        <a href=\"{{ url_for('dashboard') }}\" class=\"text-xl font-bold\">{{ APP_NAME }}</a>
-        <div class=\"flex gap-4 text-sm flex-wrap\">
+  <body class="bg-slate-50 text-slate-900">
+    <nav class="bg-white border-b sticky top-0 z-10">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
+        <a href="{{ url_for('dashboard') }}" class="text-xl font-bold">{{ APP_NAME }}</a>
+        <div class="flex gap-4 text-sm flex-wrap">
           {% if session.get('user') %}
             {% if session['user']['role'] in ['manager','admin'] %}
-            <a class=\"hover:underline\" href=\"{{ url_for('clients') }}\">Clients</a>
-            <a class=\"hover:underline\" href=\"{{ url_for('catalog') }}\">Catalog</a>
-            <a class=\"hover:underline\" href=\"{{ url_for('estimates') }}\">Estimates</a>
+            <a class="hover:underline" href="{{ url_for('clients') }}">Clients</a>
+            <a class="hover:underline" href="{{ url_for('catalog') }}">Catalog</a>
+            <a class="hover:underline" href="{{ url_for('estimates') }}">Estimates</a>
             {% endif %}
-            <a class=\"hover:underline\" href=\"{{ url_for('jobs') }}\">Jobs</a>
-            <a class=\"hover:underline\" href=\"{{ url_for('timesheets') }}\">Timesheets</a>
+            <a class="hover:underline" href="{{ url_for('jobs') }}">Jobs</a>
+            <a class="hover:underline" href="{{ url_for('timesheets') }}">Timesheets</a>
           {% endif %}
         </div>
         <div class="ml-auto flex gap-4 items-center">
@@ -990,14 +990,14 @@ Tax ({{ est['tax_pct'] }}%): ${{ '%.2f' % taxed }}<br>
 """
 
 JOBS = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Jobs</h1>
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Jobs</h1>
   {% if session['user']['role'] in ['manager','admin'] %}
-  <a href=\"{{ url_for('jobs_new') }}\" class=\"ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm\">New Job</a>
+  <a href="{{ url_for('jobs_new') }}" class="ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm">New Job</a>
   {% endif %}
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow overflow-x-auto\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>#</th><th>Title</th><th>Client</th><th>Status</th>{% if session['user']['role'] in ['manager','admin'] %}<th>Budget Hrs</th><th>Budget $</th>{% endif %}<th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>#</th><th>Title</th><th>Client</th><th>Status</th>{% if session['user']['role'] in ['manager','admin'] %}<th>Budget Hrs</th><th>Budget $</th>{% endif %}<th></th></tr></thead>
     <tbody>
       {% for r in rows %}
         <tr class="border-t"><td class="py-2">{{ r['id'] }}</td>
@@ -1009,7 +1009,7 @@ JOBS = r"""
         <td>${{ '%.2f' % (r['budget_cost'] or 0) }}</td>
         {% endif %}
         <td></td></tr>
-      {% else %}<tr><td colspan=\"{{ 7 if session['user']['role'] in ['manager','admin'] else 5 }}\" class=\"py-3 text-slate-500\">No jobs.</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="{{ 7 if session['user']['role'] in ['manager','admin'] else 5 }}" class="py-3 text-slate-500">No jobs.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
@@ -1050,19 +1050,19 @@ JOB_NEW = r"""
 """
 
 JOB_VIEW = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
 {% if session['user']['role'] in ['manager','admin'] %}
-<div class=\"grid md:grid-cols-3 gap-4\">
-  <div class=\"md:col-span-2 bg-white rounded-2xl p-4 shadow overflow-x-auto\">
-    <h2 class=\"font-semibold mb-2\">Timesheets</h2>
-    <table class=\"w-full text-sm\">
-      <thead><tr class=\"text-left text-slate-500\"><th>Employee</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Photo</th><th>Approved</th><th></th></tr></thead>
+<div class="grid md:grid-cols-3 gap-4">
+  <div class="md:col-span-2 bg-white rounded-2xl p-4 shadow overflow-x-auto">
+    <h2 class="font-semibold mb-2">Timesheets</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-slate-500"><th>Employee</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Photo</th><th>Approved</th><th></th></tr></thead>
       <tbody>
         {% for t in ts %}
-        <tr class=\"border-t\"><td class=\"py-2\">{{ t['employee'] }}</td><td>{{ t['day'] }}</td><td>{{ t['hours'] }}</td><td>${{ '%.2f' % t['rate'] }}</td><td>${{ '%.2f' % (t['hours']*t['rate']) }}</td><td>{% if t['photo'] %}<a class=\"text-blue-600 hover:underline\" href=\"{{ url_for('timesheet_photo', filename=t['photo']) }}\" target=\"_blank\">View</a>{% else %}—{% endif %}</td><td>{{ 'yes' if t['approved'] else 'no' }}</td>
-          <td class=\"text-right\"><form method=\"post\" action=\"{{ url_for('timesheets_delete', tid=t['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form></td>
+        <tr class="border-t"><td class="py-2">{{ t['employee'] }}</td><td>{{ t['day'] }}</td><td>{{ t['hours'] }}</td><td>${{ '%.2f' % t['rate'] }}</td><td>${{ '%.2f' % (t['hours']*t['rate']) }}</td><td>{% if t['photo'] %}<a class="text-blue-600 hover:underline" href="{{ url_for('timesheet_photo', filename=t['photo']) }}" target="_blank">View</a>{% else %}—{% endif %}</td><td>{{ 'yes' if t['approved'] else 'no' }}</td>
+          <td class="text-right"><form method="post" action="{{ url_for('timesheets_delete', tid=t['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form></td>
         </tr>
-        {% else %}<tr><td colspan=\"8\" class=\"py-3 text-slate-500\">No entries yet.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan="8" class="py-3 text-slate-500">No entries yet.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
@@ -1079,88 +1079,88 @@ JOB_VIEW = r"""
   </div>
 </div>
 {% endif %}
-<div class=\"bg-white rounded-2xl p-4 shadow mt-4\">
-  <h2 class=\"font-semibold mb-2\">Documents</h2>
-  <ul class=\"text-sm\">
+<div class="bg-white rounded-2xl p-4 shadow mt-4">
+  <h2 class="font-semibold mb-2">Documents</h2>
+  <ul class="text-sm">
     {% for f in files %}
-      <li><a class=\"text-blue-600 hover:underline\" href=\"{{ url_for('job_file', filename=f['filename']) }}\" target=\"_blank\">{{ f['original_name'] }}</a></li>
+      <li><a class="text-blue-600 hover:underline" href="{{ url_for('job_file', filename=f['filename']) }}" target="_blank">{{ f['original_name'] }}</a></li>
     {% else %}
-      <li class=\"text-slate-500\">No documents.</li>
+      <li class="text-slate-500">No documents.</li>
     {% endfor %}
   </ul>
   {% if session['user']['role'] in ['manager','admin'] %}
-  <form class=\"mt-2\" method=\"post\" action=\"{{ url_for('job_file_upload', jid=j['id']) }}\" enctype=\"multipart/form-data\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <input type=\"file\" name=\"file\" class=\"text-sm\" required>
-    <button class=\"bg-slate-900 text-white rounded-xl px-3 py-1 text-sm\">Upload</button>
+  <form class="mt-2" method="post" action="{{ url_for('job_file_upload', jid=j['id']) }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="file" name="file" class="text-sm" required>
+    <button class="bg-slate-900 text-white rounded-xl px-3 py-1 text-sm">Upload</button>
   </form>
   {% endif %}
 </div>
 """
 
 TIMESHEETS = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold flex-1\">Timesheets</h1>{% if session['user']['role'] in ['manager','admin'] %}{% if show_all %}<a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('timesheets') }}\">Show Mine</a>{% else %}<a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('timesheets', all=1) }}\">Show All</a>{% endif %}{% endif %}</div>
-<div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
-  <form id=\"ts-form\" method=\"post\" action=\"{{ url_for('timesheets_create') }}\" class=\"grid md:grid-cols-6 gap-2\" enctype=\"multipart/form-data\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <select class=\"border rounded-xl p-2\" name=\"employee_id\" required>
-      {% for u in users %}<option value=\"{{ u['id'] }}\">{{ u['username'] }}</option>{% endfor %}
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold flex-1">Timesheets</h1>{% if session['user']['role'] in ['manager','admin'] %}{% if show_all %}<a class="text-sm text-slate-500 hover:underline" href="{{ url_for('timesheets') }}">Show Mine</a>{% else %}<a class="text-sm text-slate-500 hover:underline" href="{{ url_for('timesheets', all=1) }}">Show All</a>{% endif %}{% endif %}</div>
+<div class="bg-white rounded-2xl p-4 shadow mb-4">
+  <form id="ts-form" method="post" action="{{ url_for('timesheets_create') }}" class="grid md:grid-cols-6 gap-2" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select class="border rounded-xl p-2" name="employee_id" required>
+      {% for u in users %}<option value="{{ u['id'] }}">{{ u['username'] }}</option>{% endfor %}
     </select>
-    <select class=\"border rounded-xl p-2\" name=\"job_id\">
-      <option value=\"\">No job</option>
-      {% for j in jobs %}<option value=\"{{ j['id'] }}\">{{ j['title'] }}</option>{% endfor %}
+    <select class="border rounded-xl p-2" name="job_id">
+      <option value="">No job</option>
+      {% for j in jobs %}<option value="{{ j['id'] }}">{{ j['title'] }}</option>{% endfor %}
     </select>
-    <input class=\"border rounded-xl p-2\" type=\"date\" name=\"day\" value=\"{{ today }}\">
-    <input class=\"border rounded-xl p-2\" type=\"number\" step=\"0.1\" name=\"hours\" placeholder=\"8\">
+    <input class="border rounded-xl p-2" type="date" name="day" value="{{ today }}">
+    <input class="border rounded-xl p-2" type="number" step="0.1" name="hours" placeholder="8">
     {% if session['user']['role'] in ['manager','admin'] %}
-    <input class=\"border rounded-xl p-2\" type=\"number\" step=\"0.01\" name=\"rate\" placeholder=\"35\">
+    <input class="border rounded-xl p-2" type="number" step="0.01" name="rate" placeholder="35">
     {% endif %}
-    <input class=\"border rounded-xl p-2 md:col-span-5\" name=\"notes\" list=\"notes-list\" placeholder=\"Notes\">
-    <datalist id=\"notes-list\">
-      <option value=\"Site prep\"><option value=\"Concrete pour\"><option value=\"Equipment maintenance\">
+    <input class="border rounded-xl p-2 md:col-span-5" name="notes" list="notes-list" placeholder="Notes">
+    <datalist id="notes-list">
+      <option value="Site prep"><option value="Concrete pour"><option value="Equipment maintenance">
     </datalist>
-    <input type=\"file\" name=\"photo\" accept=\"image/*\" class=\"md:col-span-5 text-sm\">
-    <div class=\"flex gap-2\">
-      <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
-      <button type=\"button\" id=\"quick-add-today\" class=\"bg-slate-600 text-white rounded-xl px-4\">Add for Today</button>
+    <input type="file" name="photo" accept="image/*" class="md:col-span-5 text-sm">
+    <div class="flex gap-2">
+      <button class="bg-slate-900 text-white rounded-xl px-4">Add</button>
+      <button type="button" id="quick-add-today" class="bg-slate-600 text-white rounded-xl px-4">Add for Today</button>
     </div>
   </form>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow overflow-x-auto\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>Employee</th><th>Job</th><th>Date</th><th>Hours</th>{% if session['user']['role'] in ['manager','admin'] %}<th>Rate</th><th>$</th>{% endif %}<th>Photo</th><th>Approved</th><th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>Employee</th><th>Job</th><th>Date</th><th>Hours</th>{% if session['user']['role'] in ['manager','admin'] %}<th>Rate</th><th>$</th>{% endif %}<th>Photo</th><th>Approved</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr class=\"border-t\"><td class=\"py-2\">{{ r['employee'] }}</td><td>{% if r['job_id'] %}<a href=\"{{ url_for('job_view', jid=r['job_id']) }}\" class=\"hover:underline\">{{ r['job_title'] }}</a>{% endif %}</td><td>{{ r['day'] }}</td><td>{{ r['hours'] }}</td>{% if session['user']['role'] in ['manager','admin'] %}<td>${{ '%.2f' % r['rate'] }}</td><td>${{ '%.2f' % (r['hours']*r['rate']) }}</td>{% endif %}<td>{% if r['photo'] %}<a class=\"text-blue-600 hover:underline\" href=\"{{ url_for('timesheet_photo', filename=r['photo']) }}\" target=\"_blank\">View</a>{% else %}—{% endif %}</td><td>{{ 'yes' if r['approved'] else 'no' }}</td>
-        <td class=\"text-right flex gap-2 justify-end\">
+      <tr class="border-t"><td class="py-2">{{ r['employee'] }}</td><td>{% if r['job_id'] %}<a href="{{ url_for('job_view', jid=r['job_id']) }}" class="hover:underline">{{ r['job_title'] }}</a>{% endif %}</td><td>{{ r['day'] }}</td><td>{{ r['hours'] }}</td>{% if session['user']['role'] in ['manager','admin'] %}<td>${{ '%.2f' % r['rate'] }}</td><td>${{ '%.2f' % (r['hours']*r['rate']) }}</td>{% endif %}<td>{% if r['photo'] %}<a class="text-blue-600 hover:underline" href="{{ url_for('timesheet_photo', filename=r['photo']) }}" target="_blank">View</a>{% else %}—{% endif %}</td><td>{{ 'yes' if r['approved'] else 'no' }}</td>
+        <td class="text-right flex gap-2 justify-end">
           {% if session['user']['role'] in ['manager','admin'] and not r['approved'] %}
-            <form method=\"post\" action=\"{{ url_for('timesheets_approve', tid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-green-600 text-sm\">Approve</button></form>
+            <form method="post" action="{{ url_for('timesheets_approve', tid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-green-600 text-sm">Approve</button></form>
           {% endif %}
           {% if session['user']['role'] in ['manager','admin'] %}
-            <form method=\"post\" action=\"{{ url_for('timesheets_delete', tid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form>
+            <form method="post" action="{{ url_for('timesheets_delete', tid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form>
           {% endif %}
         </td>
       </tr>
-      {% else %}<tr><td colspan=\"{{ 9 if session['user']['role'] in ['manager','admin'] else 7 }}\" class=\"py-3 text-slate-500\">No entries.</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="{{ 9 if session['user']['role'] in ['manager','admin'] else 7 }}" class="py-3 text-slate-500">No entries.</td></tr>{% endfor %}
 
     </tbody>
   </table>
-  <div class=\"mt-3\">
+  <div class="mt-3">
     {% if session['user']['role'] in ['manager','admin'] %}
-    <a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('timesheets_csv') }}\">Export CSV</a>
+    <a class="text-sm text-slate-500 hover:underline" href="{{ url_for('timesheets_csv') }}">Export CSV</a>
     {% endif %}
   </div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  const dateInput = document.querySelector('input[type=\"date\"][name=\"day\"]');
+  const dateInput = document.querySelector('input[type="date"][name="day"]');
   if(dateInput && !dateInput.value){ dateInput.value = new Date().toISOString().slice(0,10); }
   const form = document.getElementById('ts-form');
-  const jobSelect = document.querySelector('select[name=\"job_id\"]');
-  const userSelect = document.querySelector('select[name=\"employee_id\"]');
-  const rateInput = document.querySelector('input[name=\"rate\"]');
-  const notesInput = document.querySelector('input[name=\"notes\"]');
-  const userRates = { {% for u in users %}\"{{ u['id'] }}\": {{ u['default_rate'] or 0 }},{% endfor %} };
+  const jobSelect = document.querySelector('select[name="job_id"]');
+  const userSelect = document.querySelector('select[name="employee_id"]');
+  const rateInput = document.querySelector('input[name="rate"]');
+  const notesInput = document.querySelector('input[name="notes"]');
+  const userRates = { {% for u in users %}"{{ u['id'] }}": {{ u['default_rate'] or 0 }},{% endfor %} };
   if(jobSelect){
     const lastJob = localStorage.getItem('lastJobId');
     if(lastJob) jobSelect.value = lastJob;
