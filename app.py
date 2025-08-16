@@ -496,81 +496,81 @@ def inject_globals():
 BASE = r"""
 {% set title = 'Dashboard' %}
 <!doctype html>
-<html lang=\"en\">
+<html lang="en">
   <head>
-    <meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-    <link rel=\"manifest\" href=\"/manifest.webmanifest\"> 
-    <meta name=\"theme-color\" content=\"#0f172a\">
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="/manifest.webmanifest"> 
+    <meta name="theme-color" content="#0f172a">
       <title>{{ title or APP_NAME }}</title>
-    <script src=\"https://unpkg.com/htmx.org@1.9.12\"></script>
-    <script src=\"https://cdn.tailwindcss.com\"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js')}</script>
   </head>
-  <body class=\"bg-slate-50 text-slate-900\">
-    <nav class=\"bg-white border-b sticky top-0 z-10\">
-      <div class=\"max-w-6xl mx-auto px-4 py-3 flex items-center gap-4\">
-        <a href=\"{{ url_for('dashboard') }}\" class=\"text-xl font-bold\">{{ APP_NAME }}</a>
-        <div class=\"flex gap-4 text-sm\">
+  <body class="bg-slate-50 text-slate-900">
+    <nav class="bg-white border-b sticky top-0 z-10">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
+        <a href="{{ url_for('dashboard') }}" class="text-xl font-bold">{{ APP_NAME }}</a>
+        <div class="flex gap-4 text-sm">
           {% if session.get('user') and session['user']['role'] in ['manager','admin'] %}
-          <a class=\"hover:underline\" href=\"{{ url_for('clients') }}\">Clients</a>
-          <a class=\"hover:underline\" href=\"{{ url_for('catalog') }}\">Catalog</a>
-          <a class=\"hover:underline\" href=\"{{ url_for('estimates') }}\">Estimates</a>
-          <a class=\"hover:underline\" href=\"{{ url_for('jobs') }}\">Jobs</a>
+          <a class="hover:underline" href="{{ url_for('clients') }}">Clients</a>
+          <a class="hover:underline" href="{{ url_for('catalog') }}">Catalog</a>
+          <a class="hover:underline" href="{{ url_for('estimates') }}">Estimates</a>
+          <a class="hover:underline" href="{{ url_for('jobs') }}">Jobs</a>
           {% endif %}
-          <a class=\"hover:underline\" href=\"{{ url_for('timesheets') }}\">Timesheets</a>
+          <a class="hover:underline" href="{{ url_for('timesheets') }}">Timesheets</a>
         </div>
-        <div class=\"ml-auto flex gap-4 items-center\">
+        <div class="ml-auto flex gap-4 items-center">
           {% if session.get('user') %}
-            <span class=\"text-sm text-slate-500\">{{ session['user']['username'] }} ({{ session['user']['role'] }})</span>
+            <span class="text-sm text-slate-500">{{ session['user']['username'] }} ({{ session['user']['role'] }})</span>
             {% if session['user']['role']=='admin' %}
-              <a class=\"text-sm hover:underline\" href=\"{{ url_for('users_list') }}\">Users</a>
+              <a class="text-sm hover:underline" href="{{ url_for('users_list') }}">Users</a>
             {% endif %}
-            <a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('logout') }}\">Logout</a>
+            <a class="text-sm text-slate-500 hover:underline" href="{{ url_for('logout') }}">Logout</a>
           {% endif %}
         </div>
       </div>
     </nav>
-    <main class=\"max-w-6xl mx-auto p-4\">
+    <main class="max-w-6xl mx-auto p-4">
       {{ body|safe }}
     </main>
-      <footer class=\"max-w-6xl mx-auto p-4 text-xs text-slate-500\">{{ APP_NAME }} • SQLite: {{ DB_PATH }}</footer>
+      <footer class="max-w-6xl mx-auto p-4 text-xs text-slate-500">{{ APP_NAME }} • SQLite: {{ DB_PATH }}</footer>
   </body>
 </html>
 """
 
 LOGIN = r"""
-<div class=\"max-w-sm mx-auto mt-24 bg-white p-6 rounded-2xl shadow\">
-  <h1 class=\"text-xl font-semibold mb-4\">Sign in</h1>
-  {% if err %}<div class=\"text-red-600 text-sm mb-3\">{{ err }}</div>{% endif %}
-  <form method=\"post\" class=\"space-y-3\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <input name=\"username\" class=\"w-full border rounded-xl p-2\" placeholder=\"username\" value=\"admin\"> 
-    <input type=\"password\" name=\"password\" class=\"w-full border rounded-xl p-2\" placeholder=\"password\"> 
-    <button class=\"w-full bg-slate-900 text-white rounded-xl py-2\">Continue</button>
+<div class="max-w-sm mx-auto mt-24 bg-white p-6 rounded-2xl shadow">
+  <h1 class="text-xl font-semibold mb-4">Sign in</h1>
+  {% if err %}<div class="text-red-600 text-sm mb-3">{{ err }}</div>{% endif %}
+  <form method="post" class="space-y-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="username" class="w-full border rounded-xl p-2" placeholder="username" value="admin"> 
+    <input type="password" name="password" class="w-full border rounded-xl p-2" placeholder="password"> 
+    <button class="w-full bg-slate-900 text-white rounded-xl py-2">Continue</button>
   </form>
-  <p class=\"text-xs text-slate-500 mt-3\">First run bootstrap: user \"admin\" uses ADMIN_PASSWORD env var.</p>
+  <p class="text-xs text-slate-500 mt-3">First run bootstrap: user "admin" uses ADMIN_PASSWORD env var.</p>
 </div>
 """
 
 USERS = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Users</h1></div>
-<div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
-  <form method=\"post\" action=\"{{ url_for('users_create') }}\" class=\"grid md:grid-cols-4 gap-2\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <input class=\"border rounded-xl p-2\" name=\"username\" placeholder=\"Username\" required>
-    <input class=\"border rounded-xl p-2\" name=\"password\" placeholder=\"Password\" required>
-    <select name=\"role\" class=\"border rounded-xl p-2\"><option>worker</option><option>manager</option><option>admin</option></select>
-    <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Users</h1></div>
+<div class="bg-white rounded-2xl p-4 shadow mb-4">
+  <form method="post" action="{{ url_for('users_create') }}" class="grid md:grid-cols-4 gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="border rounded-xl p-2" name="username" placeholder="Username" required>
+    <input class="border rounded-xl p-2" name="password" placeholder="Password" required>
+    <select name="role" class="border rounded-xl p-2"><option>worker</option><option>manager</option><option>admin</option></select>
+    <button class="bg-slate-900 text-white rounded-xl px-4">Add</button>
   </form>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>#</th><th>User</th><th>Role</th><th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>#</th><th>User</th><th>Role</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr class=\"border-t\"><td class=\"py-2\">{{ r['id'] }}</td><td>{{ r['username'] }}</td><td>{{ r['role'] }}</td>
-        <td class=\"text-right\"><form method=\"post\" action=\"{{ url_for('users_delete', uid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form></td></tr>
-      {% else %}<tr><td colspan=\"4\" class=\"py-3 text-slate-500\">No users.</td></tr>{% endfor %}
+      <tr class="border-t"><td class="py-2">{{ r['id'] }}</td><td>{{ r['username'] }}</td><td>{{ r['role'] }}</td>
+        <td class="text-right"><form method="post" action="{{ url_for('users_delete', uid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form></td></tr>
+      {% else %}<tr><td colspan="4" class="py-3 text-slate-500">No users.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
@@ -578,227 +578,227 @@ USERS = r"""
 
 # The rest of the templates are identical to v1
 DASH = r"""
-<h1 class=\"text-2xl font-semibold mb-4\">Dashboard</h1>
-<div class=\"grid grid-cols-1 md:grid-cols-3 gap-4\">
-  <div class=\"bg-white rounded-2xl p-4 shadow\"><div class=\"text-sm text-slate-500\">Open Estimates</div><div class=\"text-3xl font-bold\">{{ kpi_est }}</div></div>
-  <div class=\"bg-white rounded-2xl p-4 shadow\"><div class=\"text-sm text-slate-500\">Active Jobs</div><div class=\"text-3xl font-bold\">{{ kpi_jobs_open }}</div></div>
-  <div class=\"bg-white rounded-2xl p-4 shadow\"><div class=\"text-sm text-slate-500\">Unapproved Hours</div><div class=\"text-3xl font-bold\">{{ '%.2f' % unapproved_hours }}</div></div>
+<h1 class="text-2xl font-semibold mb-4">Dashboard</h1>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <div class="bg-white rounded-2xl p-4 shadow"><div class="text-sm text-slate-500">Open Estimates</div><div class="text-3xl font-bold">{{ kpi_est }}</div></div>
+  <div class="bg-white rounded-2xl p-4 shadow"><div class="text-sm text-slate-500">Active Jobs</div><div class="text-3xl font-bold">{{ kpi_jobs_open }}</div></div>
+  <div class="bg-white rounded-2xl p-4 shadow"><div class="text-sm text-slate-500">Unapproved Hours</div><div class="text-3xl font-bold">{{ '%.2f' % unapproved_hours }}</div></div>
 </div>
-<div class=\"grid md:grid-cols-2 gap-4 mt-6\">
-  <div class=\"bg-white rounded-2xl p-4 shadow\">
-    <div class=\"flex items-center mb-2\"><h2 class=\"font-semibold\">Recent Estimates</h2>
-      <a class=\"ml-auto text-sm text-slate-500 hover:underline\" href=\"{{ url_for('estimates') }}\">View all</a></div>
-    <ul class=\"divide-y\">
+<div class="grid md:grid-cols-2 gap-4 mt-6">
+  <div class="bg-white rounded-2xl p-4 shadow">
+    <div class="flex items-center mb-2"><h2 class="font-semibold">Recent Estimates</h2>
+      <a class="ml-auto text-sm text-slate-500 hover:underline" href="{{ url_for('estimates') }}">View all</a></div>
+    <ul class="divide-y">
       {% for r in recent %}
-      <li class=\"py-2 flex gap-2\">
-        <div class=\"font-medium\">#{{ r['id'] }} {{ r['title'] }}</div>
-        <div class=\"text-slate-500\">{{ r['client'] }}</div>
-        <span class=\"ml-auto text-xs rounded-full px-2 py-1 bg-slate-100\">{{ r['status'] }}</span>
+      <li class="py-2 flex gap-2">
+        <div class="font-medium">#{{ r['id'] }} {{ r['title'] }}</div>
+        <div class="text-slate-500">{{ r['client'] }}</div>
+        <span class="ml-auto text-xs rounded-full px-2 py-1 bg-slate-100">{{ r['status'] }}</span>
       </li>
-      {% else %}<li class=\"py-2 text-slate-500\">No estimates yet.</li>{% endfor %}
+      {% else %}<li class="py-2 text-slate-500">No estimates yet.</li>{% endfor %}
     </ul>
   </div>
-  <div class=\"bg-white rounded-2xl p-4 shadow\">
-    <div class=\"flex items-center mb-2\"><h2 class=\"font-semibold\">Recent Jobs</h2>
-      <a class=\"ml-auto text-sm text-slate-500 hover:underline\" href=\"{{ url_for('jobs') }}\">View all</a></div>
-    <ul class=\"divide-y\">
+  <div class="bg-white rounded-2xl p-4 shadow">
+    <div class="flex items-center mb-2"><h2 class="font-semibold">Recent Jobs</h2>
+      <a class="ml-auto text-sm text-slate-500 hover:underline" href="{{ url_for('jobs') }}">View all</a></div>
+    <ul class="divide-y">
       {% for j in jlist %}
-      <li class=\"py-2 flex gap-2 items-center\">
-        <div class=\"font-medium\">#{{ j['id'] }} {{ j['title'] }}</div>
-        <div class=\"text-slate-500\">{{ j['client'] }}</div>
-        <span class=\"ml-auto text-xs rounded-full px-2 py-1 bg-slate-100\">{{ j['status'] }}</span>
+      <li class="py-2 flex gap-2 items-center">
+        <div class="font-medium">#{{ j['id'] }} {{ j['title'] }}</div>
+        <div class="text-slate-500">{{ j['client'] }}</div>
+        <span class="ml-auto text-xs rounded-full px-2 py-1 bg-slate-100">{{ j['status'] }}</span>
       </li>
-      {% else %}<li class=\"py-2 text-slate-500\">No jobs yet.</li>{% endfor %}
+      {% else %}<li class="py-2 text-slate-500">No jobs yet.</li>{% endfor %}
     </ul>
   </div>
 </div>
 """
 
 CLIENTS = r"""
-<div class=\"flex items-center mb-3\">
-  <h1 class=\"text-2xl font-semibold\">Clients</h1>
+<div class="flex items-center mb-3">
+  <h1 class="text-2xl font-semibold">Clients</h1>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
-  <form method=\"post\" action=\"{{ url_for('clients_create') }}\" class=\"grid md:grid-cols-5 gap-2\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <input class=\"border rounded-xl p-2\" name=\"name\" placeholder=\"Name\" required>
-    <input class=\"border rounded-xl p-2\" name=\"phone\" placeholder=\"Phone\">
-    <input class=\"border rounded-xl p-2\" name=\"email\" placeholder=\"Email\">
-    <input class=\"border rounded-xl p-2\" name=\"address\" placeholder=\"Address\">
-    <input class=\"border rounded-xl p-2 md:col-span-4\" name=\"notes\" placeholder=\"Notes\">
-    <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
+<div class="bg-white rounded-2xl p-4 shadow mb-4">
+  <form method="post" action="{{ url_for('clients_create') }}" class="grid md:grid-cols-5 gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="border rounded-xl p-2" name="name" placeholder="Name" required>
+    <input class="border rounded-xl p-2" name="phone" placeholder="Phone">
+    <input class="border rounded-xl p-2" name="email" placeholder="Email">
+    <input class="border rounded-xl p-2" name="address" placeholder="Address">
+    <input class="border rounded-xl p-2 md:col-span-4" name="notes" placeholder="Notes">
+    <button class="bg-slate-900 text-white rounded-xl px-4">Add</button>
   </form>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>Name</th><th>Phone</th><th>Email</th><th>Address</th><th>Notes</th><th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>Name</th><th>Phone</th><th>Email</th><th>Address</th><th>Notes</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr class=\"border-t\"><td class=\"py-2\">{{ r['name'] }}</td><td>{{ r['phone'] or '' }}</td><td>{{ r['email'] or '' }}</td><td>{{ r['address'] or '' }}</td><td>{{ r['notes'] or '' }}</td>
-        <td class=\"text-right\"><form method=\"post\" action=\"{{ url_for('clients_delete', cid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form></td></tr>
-      {% else %}<tr><td colspan=\"6\" class=\"py-3 text-slate-500\">No clients.</td></tr>{% endfor %}
+      <tr class="border-t"><td class="py-2">{{ r['name'] }}</td><td>{{ r['phone'] or '' }}</td><td>{{ r['email'] or '' }}</td><td>{{ r['address'] or '' }}</td><td>{{ r['notes'] or '' }}</td>
+        <td class="text-right"><form method="post" action="{{ url_for('clients_delete', cid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form></td></tr>
+      {% else %}<tr><td colspan="6" class="py-3 text-slate-500">No clients.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
 """
 
 CATALOG = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Catalog</h1></div>
-<div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
-  <form method=\"post\" action=\"{{ url_for('catalog_create') }}\" class=\"grid md:grid-cols-5 gap-2\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <input class=\"border rounded-xl p-2\" name=\"name\" placeholder=\"Name\" required>
-    <input class=\"border rounded-xl p-2\" name=\"unit\" placeholder=\"Unit\" value=\"ea\">
-    <input class=\"border rounded-xl p-2\" name=\"cost\" placeholder=\"Cost\" type=\"number\" step=\"0.01\" value=\"0\">
-    <select class=\"border rounded-xl p-2\" name=\"kind\"><option>material</option><option>service</option><option>equipment</option></select>
-    <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Catalog</h1></div>
+<div class="bg-white rounded-2xl p-4 shadow mb-4">
+  <form method="post" action="{{ url_for('catalog_create') }}" class="grid md:grid-cols-5 gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="border rounded-xl p-2" name="name" placeholder="Name" required>
+    <input class="border rounded-xl p-2" name="unit" placeholder="Unit" value="ea">
+    <input class="border rounded-xl p-2" name="cost" placeholder="Cost" type="number" step="0.01" value="0">
+    <select class="border rounded-xl p-2" name="kind"><option>material</option><option>service</option><option>equipment</option></select>
+    <button class="bg-slate-900 text-white rounded-xl px-4">Add</button>
   </form>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>Name</th><th>Unit</th><th>Cost</th><th>Kind</th><th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>Name</th><th>Unit</th><th>Cost</th><th>Kind</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr class=\"border-t\"><td class=\"py-2\">{{ r['name'] }}</td><td>{{ r['unit'] }}</td><td>${{ '%.2f' % r['cost'] }}</td><td>{{ r['kind'] }}</td>
-        <td class=\"text-right\"><form method=\"post\" action=\"{{ url_for('catalog_delete', item_id=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form></td></tr>
-      {% else %}<tr><td colspan=\"5\" class=\"py-3 text-slate-500\">No items.</td></tr>{% endfor %}
+      <tr class="border-t"><td class="py-2">{{ r['name'] }}</td><td>{{ r['unit'] }}</td><td>${{ '%.2f' % r['cost'] }}</td><td>{{ r['kind'] }}</td>
+        <td class="text-right"><form method="post" action="{{ url_for('catalog_delete', item_id=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form></td></tr>
+      {% else %}<tr><td colspan="5" class="py-3 text-slate-500">No items.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
 """
 
 ESTIMATES = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Estimates</h1>
-  <a href=\"{{ url_for('estimates_new') }}\" class=\"ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm\">New Estimate</a>
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Estimates</h1>
+  <a href="{{ url_for('estimates_new') }}" class="ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm">New Estimate</a>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>#</th><th>Title</th><th>Client</th><th>Status</th><th>Total</th><th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>#</th><th>Title</th><th>Client</th><th>Status</th><th>Total</th><th></th></tr></thead>
     <tbody>
     {% for r in rows %}
       {% set total = (r['subtotal'] + (r['subtotal'] * r['margin_pct']/100.0)) * (1 + r['tax_pct']/100.0) %}
-      <tr class=\"border-t\">
-        <td class=\"py-2\">{{ r['id'] }}</td>
-        <td><a class=\"hover:underline\" href=\"{{ url_for('estimate_edit', eid=r['id']) }}\">{{ r['title'] }}</a></td>
+      <tr class="border-t">
+        <td class="py-2">{{ r['id'] }}</td>
+        <td><a class="hover:underline" href="{{ url_for('estimate_edit', eid=r['id']) }}">{{ r['title'] }}</a></td>
         <td>{{ r['client_name'] }}</td>
         <td>{{ r['status'] }}</td>
         <td>${{ '%.2f' % total }}</td>
-        <td><a href=\"{{ url_for('estimate_print', eid=r['id']) }}\" class=\"text-sm text-slate-500 hover:underline\">Print</a></td>
+        <td><a href="{{ url_for('estimate_print', eid=r['id']) }}" class="text-sm text-slate-500 hover:underline">Print</a></td>
       </tr>
-    {% else %}<tr><td colspan=\"6\" class=\"py-3 text-slate-500\">No estimates.</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="6" class="py-3 text-slate-500">No estimates.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
 """
 
 ESTIMATE_NEW = r"""
-<h1 class=\"text-2xl font-semibold mb-3\">New Estimate</h1>
-<form method=\"post\" action=\"{{ url_for('estimates_create') }}\" class=\"grid md:grid-cols-2 gap-3 bg-white p-4 rounded-2xl shadow\">
-  <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
+<h1 class="text-2xl font-semibold mb-3">New Estimate</h1>
+<form method="post" action="{{ url_for('estimates_create') }}" class="grid md:grid-cols-2 gap-3 bg-white p-4 rounded-2xl shadow">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div>
-    <label class=\"text-sm text-slate-500\">Client</label>
-    <select name=\"client_id\" class=\"w-full border rounded-xl p-2\" required>
-      {% for c in clients %}<option value=\"{{ c['id'] }}\">{{ c['name'] }}</option>{% endfor %}
+    <label class="text-sm text-slate-500">Client</label>
+    <select name="client_id" class="w-full border rounded-xl p-2" required>
+      {% for c in clients %}<option value="{{ c['id'] }}">{{ c['name'] }}</option>{% endfor %}
     </select>
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Title</label>
-    <input name=\"title\" class=\"w-full border rounded-xl p-2\" placeholder=\"Driveway prep & gravel\" required>
+    <label class="text-sm text-slate-500">Title</label>
+    <input name="title" class="w-full border rounded-xl p-2" placeholder="Driveway prep & gravel" required>
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Margin %</label>
-    <input name=\"margin_pct\" type=\"number\" step=\"0.1\" value=\"15\" class=\"w-full border rounded-xl p-2\">
+    <label class="text-sm text-slate-500">Margin %</label>
+    <input name="margin_pct" type="number" step="0.1" value="15" class="w-full border rounded-xl p-2">
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Tax %</label>
-    <input name=\"tax_pct\" type=\"number\" step=\"0.1\" value=\"5\" class=\"w-full border rounded-xl p-2\">
+    <label class="text-sm text-slate-500">Tax %</label>
+    <input name="tax_pct" type="number" step="0.1" value="5" class="w-full border rounded-xl p-2">
   </div>
-  <div class=\"md:col-span-2\">
-    <label class=\"text-sm text-slate-500\">Notes</label>
-    <textarea name=\"notes\" class=\"w-full border rounded-xl p-2\" rows=\"3\"></textarea>
+  <div class="md:col-span-2">
+    <label class="text-sm text-slate-500">Notes</label>
+    <textarea name="notes" class="w-full border rounded-xl p-2" rows="3"></textarea>
   </div>
-  <button class=\"bg-slate-900 text-white rounded-xl px-4 py-2\">Create</button>
+  <button class="bg-slate-900 text-white rounded-xl px-4 py-2">Create</button>
 </form>
 """
 
 ESTIMATE_EDIT = r"""
-<div class=\"flex items-center mb-3\">
-  <h1 class=\"text-2xl font-semibold\">Estimate #{{ est['id'] }}</h1>
-  <a href=\"{{ url_for('estimate_print', eid=est['id']) }}\" class=\"ml-auto text-sm bg-white border rounded-xl px-3 py-1 shadow\">Print</a>
-  <a href=\"{{ url_for('estimate_csv', eid=est['id']) }}\" class=\"ml-2 text-sm bg-white border rounded-xl px-3 py-1 shadow\">CSV</a>
+<div class="flex items-center mb-3">
+  <h1 class="text-2xl font-semibold">Estimate #{{ est['id'] }}</h1>
+  <a href="{{ url_for('estimate_print', eid=est['id']) }}" class="ml-auto text-sm bg-white border rounded-xl px-3 py-1 shadow">Print</a>
+  <a href="{{ url_for('estimate_csv', eid=est['id']) }}" class="ml-2 text-sm bg-white border rounded-xl px-3 py-1 shadow">CSV</a>
 </div>
-<form method=\"post\" action=\"{{ url_for('estimate_update', eid=est['id']) }}\" class=\"grid md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl shadow mb-4\">
-  <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
+<form method="post" action="{{ url_for('estimate_update', eid=est['id']) }}" class="grid md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl shadow mb-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div>
-    <label class=\"text-sm text-slate-500\">Client</label>
-    <select name=\"client_id\" class=\"w-full border rounded-xl p-2\">
-      {% for c in clients %}<option value=\"{{ c['id'] }}\" {% if c['id']==est['client_id'] %}selected{% endif %}>{{ c['name'] }}</option>{% endfor %}
+    <label class="text-sm text-slate-500">Client</label>
+    <select name="client_id" class="w-full border rounded-xl p-2">
+      {% for c in clients %}<option value="{{ c['id'] }}" {% if c['id']==est['client_id'] %}selected{% endif %}>{{ c['name'] }}</option>{% endfor %}
     </select>
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Title</label>
-    <input name=\"title\" class=\"w-full border rounded-xl p-2\" value=\"{{ est['title'] }}\"> 
+    <label class="text-sm text-slate-500">Title</label>
+    <input name="title" class="w-full border rounded-xl p-2" value="{{ est['title'] }}"> 
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Status</label>
-    <select name=\"status\" class=\"w-full border rounded-xl p-2\">
+    <label class="text-sm text-slate-500">Status</label>
+    <select name="status" class="w-full border rounded-xl p-2">
       {% for s in ['draft','sent','accepted','rejected'] %}<option {% if s==est['status'] %}selected{% endif %}>{{ s }}</option>{% endfor %}
     </select>
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Margin %</label>
-    <input name=\"margin_pct\" type=\"number\" step=\"0.1\" value=\"{{ est['margin_pct'] }}\" class=\"w-full border rounded-xl p-2\">
+    <label class="text-sm text-slate-500">Margin %</label>
+    <input name="margin_pct" type="number" step="0.1" value="{{ est['margin_pct'] }}" class="w-full border rounded-xl p-2">
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Tax %</label>
-    <input name=\"tax_pct\" type=\"number\" step=\"0.1\" value=\"{{ est['tax_pct'] }}\" class=\"w-full border rounded-xl p-2\">
+    <label class="text-sm text-slate-500">Tax %</label>
+    <input name="tax_pct" type="number" step="0.1" value="{{ est['tax_pct'] }}" class="w-full border rounded-xl p-2">
   </div>
-  <div class=\"md:col-span-3\">
-    <label class=\"text-sm text-slate-500\">Notes</label>
-    <textarea name=\"notes\" class=\"w-full border rounded-xl p-2\" rows=\"3\">{{ est['notes'] or '' }}</textarea>
+  <div class="md:col-span-3">
+    <label class="text-sm text-slate-500">Notes</label>
+    <textarea name="notes" class="w-full border rounded-xl p-2" rows="3">{{ est['notes'] or '' }}</textarea>
   </div>
-  <button class=\"bg-slate-900 text-white rounded-xl px-4 py-2\">Save</button>
+  <button class="bg-slate-900 text-white rounded-xl px-4 py-2">Save</button>
 </form>
-<div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
-  <h2 class=\"font-semibold mb-2\">Line Items</h2>
-  <form method=\"post\" action=\"{{ url_for('estimate_items_add', eid=est['id']) }}\" class=\"grid md:grid-cols-6 gap-2 mb-3\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <select name=\"catalog_id\" class=\"border rounded-xl p-2\">
-      <option value=\"\">Custom…</option>
-      {% for c in cat %}<option value=\"{{ c['id'] }}\">{{ c['name'] }} (${{ '%.2f' % c['cost'] }})</option>{% endfor %}
+<div class="bg-white rounded-2xl p-4 shadow mb-4">
+  <h2 class="font-semibold mb-2">Line Items</h2>
+  <form method="post" action="{{ url_for('estimate_items_add', eid=est['id']) }}" class="grid md:grid-cols-6 gap-2 mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="catalog_id" class="border rounded-xl p-2">
+      <option value="">Custom…</option>
+      {% for c in cat %}<option value="{{ c['id'] }}">{{ c['name'] }} (${{ '%.2f' % c['cost'] }})</option>{% endfor %}
     </select>
-    <input name=\"name\" class=\"border rounded-xl p-2\" placeholder=\"Item name\"> 
-    <input name=\"qty\" type=\"number\" step=\"0.01\" value=\"1\" class=\"border rounded-xl p-2\"> 
-    <input name=\"unit\" class=\"border rounded-xl p-2\" value=\"ea\"> 
-    <input name=\"unit_cost\" type=\"number\" step=\"0.01\" class=\"border rounded-xl p-2\" placeholder=\"0.00\"> 
-    <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
+    <input name="name" class="border rounded-xl p-2" placeholder="Item name"> 
+    <input name="qty" type="number" step="0.01" value="1" class="border rounded-xl p-2"> 
+    <input name="unit" class="border rounded-xl p-2" value="ea"> 
+    <input name="unit_cost" type="number" step="0.01" class="border rounded-xl p-2" placeholder="0.00"> 
+    <button class="bg-slate-900 text-white rounded-xl px-4">Add</button>
   </form>
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>Name</th><th>Qty</th><th>Unit</th><th>Unit Cost</th><th>Total</th><th></th></tr></thead>
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>Name</th><th>Qty</th><th>Unit</th><th>Unit Cost</th><th>Total</th><th></th></tr></thead>
     <tbody>
       {% for i in items %}
-      <tr class=\"border-t\"><td class=\"py-2\">{{ i['name'] }}</td><td>{{ i['qty'] }}</td><td>{{ i['unit'] }}</td><td>${{ '%.2f' % i['unit_cost'] }}</td><td>${{ '%.2f' % (i['qty']*i['unit_cost']) }}</td>
-        <td class=\"text-right\"><form method=\"post\" action=\"{{ url_for('estimate_items_del', eid=est['id'], iid=i['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form></td></tr>
-      {% else %}<tr><td colspan=\"6\" class=\"py-3 text-slate-500\">No items.</td></tr>{% endfor %}
+      <tr class="border-t"><td class="py-2">{{ i['name'] }}</td><td>{{ i['qty'] }}</td><td>{{ i['unit'] }}</td><td>${{ '%.2f' % i['unit_cost'] }}</td><td>${{ '%.2f' % (i['qty']*i['unit_cost']) }}</td>
+        <td class="text-right"><form method="post" action="{{ url_for('estimate_items_del', eid=est['id'], iid=i['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form></td></tr>
+      {% else %}<tr><td colspan="6" class="py-3 text-slate-500">No items.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
-<div class=\"grid md:grid-cols-4 gap-4\">
-  <div class=\"bg-white rounded-2xl p-4 shadow md:col-start-4\">
-    <div class=\"text-sm text-slate-500\">Subtotal</div>
-    <div class=\"text-xl font-semibold\">${{ '%.2f' % subtotal }}</div>
-    <div class=\"text-sm text-slate-500 mt-2\">Margin ({{ est['margin_pct'] }}%)</div>
+<div class="grid md:grid-cols-4 gap-4">
+  <div class="bg-white rounded-2xl p-4 shadow md:col-start-4">
+    <div class="text-sm text-slate-500">Subtotal</div>
+    <div class="text-xl font-semibold">${{ '%.2f' % subtotal }}</div>
+    <div class="text-sm text-slate-500 mt-2">Margin ({{ est['margin_pct'] }}%)</div>
     <div>${{ '%.2f' % margin }}</div>
-    <div class=\"text-sm text-slate-500 mt-2\">Tax ({{ est['tax_pct'] }}%)</div>
+    <div class="text-sm text-slate-500 mt-2">Tax ({{ est['tax_pct'] }}%)</div>
     <div>${{ '%.2f' % taxed }}</div>
-    <div class=\"mt-3 text-sm text-slate-500\">Total</div>
-    <div class=\"text-2xl font-bold\">${{ '%.2f' % total }}</div>
+    <div class="mt-3 text-sm text-slate-500">Total</div>
+    <div class="text-2xl font-bold">${{ '%.2f' % total }}</div>
   </div>
 </div>
 """
 
 PRINT = r"""
-<!doctype html><html><head><meta charset=\"utf-8\"><title>Estimate #{{ est['id'] }}</title>
+<!doctype html><html><head><meta charset="utf-8"><title>Estimate #{{ est['id'] }}</title>
   <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; margin:40px;} table{border-collapse:collapse;width:100%} td,th{border-top:1px solid #ddd;padding:8px;text-align:left}</style>
 </head><body>
 <h1>Estimate #{{ est['id'] }} — {{ est['title'] }}</h1>
@@ -813,134 +813,134 @@ PRINT = r"""
 Margin ({{ est['margin_pct'] }}%): ${{ '%.2f' % margin }}<br>
 Tax ({{ est['tax_pct'] }}%): ${{ '%.2f' % taxed }}<br>
 <strong>Total: ${{ '%.2f' % total }}</strong></p>
-<p style=\"color:#666\">Generated by {{ app_name }}</p>
+<p style="color:#666">Generated by {{ app_name }}</p>
 </body></html>
 """
 
 JOBS = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Jobs</h1>
-  <a href=\"{{ url_for('jobs_new') }}\" class=\"ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm\">New Job</a>
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Jobs</h1>
+  <a href="{{ url_for('jobs_new') }}" class="ml-auto bg-slate-900 text-white rounded-xl px-4 py-2 text-sm">New Job</a>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>#</th><th>Title</th><th>Client</th><th>Status</th><th>Budget Hrs</th><th>Budget $</th><th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>#</th><th>Title</th><th>Client</th><th>Status</th><th>Budget Hrs</th><th>Budget $</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-        <tr class=\"border-t\"><td class=\"py-2\">{{ r['id'] }}</td>
-        <td><a href=\"{{ url_for('job_view', jid=r['id']) }}\" class=\"hover:underline\">{{ r['title'] }}</a></td>
+        <tr class="border-t"><td class="py-2">{{ r['id'] }}</td>
+        <td><a href="{{ url_for('job_view', jid=r['id']) }}" class="hover:underline">{{ r['title'] }}</a></td>
         <td>{{ r['client_name'] }}</td>
         <td>{{ r['status'] }}</td>
         <td>{{ r['budget_hours'] }}</td>
         <td>${{ '%.2f' % (r['budget_cost'] or 0) }}</td>
         <td></td></tr>
-      {% else %}<tr><td colspan=\"7\" class=\"py-3 text-slate-500\">No jobs.</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="7" class="py-3 text-slate-500">No jobs.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
 """
 
 JOB_NEW = r"""
-<h1 class=\"text-2xl font-semibold mb-3\">New Job</h1>
-<form method=\"post\" action=\"{{ url_for('jobs_create') }}\" class=\"grid md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl shadow\">
-  <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
+<h1 class="text-2xl font-semibold mb-3">New Job</h1>
+<form method="post" action="{{ url_for('jobs_create') }}" class="grid md:grid-cols-3 gap-3 bg-white p-4 rounded-2xl shadow">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div>
-    <label class=\"text-sm text-slate-500\">Client</label>
-    <select name=\"client_id\" class=\"w-full border rounded-xl p-2\" required>
-      {% for c in clients %}<option value=\"{{ c['id'] }}\">{{ c['name'] }}</option>{% endfor %}
+    <label class="text-sm text-slate-500">Client</label>
+    <select name="client_id" class="w-full border rounded-xl p-2" required>
+      {% for c in clients %}<option value="{{ c['id'] }}">{{ c['name'] }}</option>{% endfor %}
     </select>
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Estimate (optional)</label>
-    <select name=\"estimate_id\" class=\"w-full border rounded-xl p-2\">
-      <option value=\"\">—</option>
-      {% for e in estimates %}<option value=\"{{ e['id'] }}\">#{{ e['id'] }} {{ e['title'] }}</option>{% endfor %}
+    <label class="text-sm text-slate-500">Estimate (optional)</label>
+    <select name="estimate_id" class="w-full border rounded-xl p-2">
+      <option value="">—</option>
+      {% for e in estimates %}<option value="{{ e['id'] }}">#{{ e['id'] }} {{ e['title'] }}</option>{% endfor %}
     </select>
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Title</label>
-    <input name=\"title\" class=\"w-full border rounded-xl p-2\" placeholder=\"Site prep & trucking\" required>
+    <label class="text-sm text-slate-500">Title</label>
+    <input name="title" class="w-full border rounded-xl p-2" placeholder="Site prep & trucking" required>
   </div>
   <div>
-    <label class=\"text-sm text-slate-500\">Status</label>
-    <select name=\"status\" class=\"w-full border rounded-xl p-2\"><option>open</option><option>scheduled</option><option>in_progress</option><option>hold</option><option>done</option><option>invoiced</option></select>
+    <label class="text-sm text-slate-500">Status</label>
+    <select name="status" class="w-full border rounded-xl p-2"><option>open</option><option>scheduled</option><option>in_progress</option><option>hold</option><option>done</option><option>invoiced</option></select>
   </div>
-  <div><label class=\"text-sm text-slate-500\">Budget Hours</label><input type=\"number\" step=\"0.1\" name=\"budget_hours\" class=\"w-full border rounded-xl p-2\" value=\"0\"></div>
-  <div><label class=\"text-sm text-slate-500\">Budget $</label><input type=\"number\" step=\"0.01\" name=\"budget_cost\" class=\"w-full border rounded-xl p-2\" value=\"0\"></div>
-  <div><label class=\"text-sm text-slate-500\">Start</label><input type=\"date\" name=\"start_date\" class=\"w-full border rounded-xl p-2\" value=\"{{ today }}\"></div>
-  <div><label class=\"text-sm text-slate-500\">Due</label><input type=\"date\" name=\"due_date\" class=\"w-full border rounded-xl p-2\"></div>
-  <div class=\"md:col-span-3\"><label class=\"text-sm text-slate-500\">Notes</label><textarea name=\"notes\" class=\"w-full border rounded-xl p-2\" rows=\"3\"></textarea></div>
-  <button class=\"bg-slate-900 text-white rounded-xl px-4 py-2\">Create</button>
+  <div><label class="text-sm text-slate-500">Budget Hours</label><input type="number" step="0.1" name="budget_hours" class="w-full border rounded-xl p-2" value="0"></div>
+  <div><label class="text-sm text-slate-500">Budget $</label><input type="number" step="0.01" name="budget_cost" class="w-full border rounded-xl p-2" value="0"></div>
+  <div><label class="text-sm text-slate-500">Start</label><input type="date" name="start_date" class="w-full border rounded-xl p-2" value="{{ today }}"></div>
+  <div><label class="text-sm text-slate-500">Due</label><input type="date" name="due_date" class="w-full border rounded-xl p-2"></div>
+  <div class="md:col-span-3"><label class="text-sm text-slate-500">Notes</label><textarea name="notes" class="w-full border rounded-xl p-2" rows="3"></textarea></div>
+  <button class="bg-slate-900 text-white rounded-xl px-4 py-2">Create</button>
 </form>
 """
 
 JOB_VIEW = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
-<div class=\"grid md:grid-cols-3 gap-4\">
-  <div class=\"md:col-span-2 bg-white rounded-2xl p-4 shadow\">
-    <h2 class=\"font-semibold mb-2\">Timesheets</h2>
-    <table class=\"w-full text-sm\">
-      <thead><tr class=\"text-left text-slate-500\"><th>Employee</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Approved</th><th></th></tr></thead>
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Job #{{ j['id'] }} — {{ j['title'] }}</h1></div>
+<div class="grid md:grid-cols-3 gap-4">
+  <div class="md:col-span-2 bg-white rounded-2xl p-4 shadow">
+    <h2 class="font-semibold mb-2">Timesheets</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-slate-500"><th>Employee</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Approved</th><th></th></tr></thead>
       <tbody>
         {% for t in ts %}
-        <tr class=\"border-t\"><td class=\"py-2\">{{ t['employee'] }}</td><td>{{ t['day'] }}</td><td>{{ t['hours'] }}</td><td>${{ '%.2f' % t['rate'] }}</td><td>${{ '%.2f' % (t['hours']*t['rate']) }}</td><td>{{ 'yes' if t['approved'] else 'no' }}</td>
-          <td class=\"text-right\">{% if session['user']['role'] in ['manager','admin'] %}<form method=\"post\" action=\"{{ url_for('timesheets_delete', tid=t['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form>{% endif %}</td>
+        <tr class="border-t"><td class="py-2">{{ t['employee'] }}</td><td>{{ t['day'] }}</td><td>{{ t['hours'] }}</td><td>${{ '%.2f' % t['rate'] }}</td><td>${{ '%.2f' % (t['hours']*t['rate']) }}</td><td>{{ 'yes' if t['approved'] else 'no' }}</td>
+          <td class="text-right">{% if session['user']['role'] in ['manager','admin'] %}<form method="post" action="{{ url_for('timesheets_delete', tid=t['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form>{% endif %}</td>
         </tr>
-        {% else %}<tr><td colspan=\"7\" class=\"py-3 text-slate-500\">No entries yet.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan="7" class="py-3 text-slate-500">No entries yet.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
-  <div class=\"bg-white rounded-2xl p-4 shadow\">
-    <h2 class=\"font-semibold mb-2\">Summary</h2>
-    <div class=\"text-sm text-slate-500\">Client</div>
-    <div class=\"mb-2\">{{ j['client_name'] }}</div>
-    <div class=\"grid grid-cols-2 gap-2 text-sm\">
-      <div>Budget Hrs</div><div class=\"text-right\">{{ j['budget_hours'] }}</div>
-      <div>Actual Hrs</div><div class=\"text-right\">{{ '%.2f' % actual_hours }}</div>
-      <div>Budget $</div><div class=\"text-right\">${{ '%.2f' % (j['budget_cost'] or 0) }}</div>
-      <div>Actual $</div><div class=\"text-right\">${{ '%.2f' % actual_cost }}</div>
+  <div class="bg-white rounded-2xl p-4 shadow">
+    <h2 class="font-semibold mb-2">Summary</h2>
+    <div class="text-sm text-slate-500">Client</div>
+    <div class="mb-2">{{ j['client_name'] }}</div>
+    <div class="grid grid-cols-2 gap-2 text-sm">
+      <div>Budget Hrs</div><div class="text-right">{{ j['budget_hours'] }}</div>
+      <div>Actual Hrs</div><div class="text-right">{{ '%.2f' % actual_hours }}</div>
+      <div>Budget $</div><div class="text-right">${{ '%.2f' % (j['budget_cost'] or 0) }}</div>
+      <div>Actual $</div><div class="text-right">${{ '%.2f' % actual_cost }}</div>
     </div>
   </div>
 </div>
 """
 
 TIMESHEETS = r"""
-<div class=\"flex items-center mb-3\"><h1 class=\"text-2xl font-semibold\">Timesheets</h1></div>
-<div class=\"bg-white rounded-2xl p-4 shadow mb-4\">
-  <form method=\"post\" action=\"{{ url_for('timesheets_create') }}\" class=\"grid md:grid-cols-6 gap-2\">
-    <input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\">
-    <input class=\"border rounded-xl p-2\" name=\"employee\" placeholder=\"Employee\" required>
-    <select class=\"border rounded-xl p-2\" name=\"job_id\">
-      <option value=\"\">No job</option>
-      {% for j in jobs %}<option value=\"{{ j['id'] }}\">{{ j['title'] }}</option>{% endfor %}
+<div class="flex items-center mb-3"><h1 class="text-2xl font-semibold">Timesheets</h1></div>
+<div class="bg-white rounded-2xl p-4 shadow mb-4">
+  <form method="post" action="{{ url_for('timesheets_create') }}" class="grid md:grid-cols-6 gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input class="border rounded-xl p-2" name="employee" placeholder="Employee" required>
+    <select class="border rounded-xl p-2" name="job_id">
+      <option value="">No job</option>
+      {% for j in jobs %}<option value="{{ j['id'] }}">{{ j['title'] }}</option>{% endfor %}
     </select>
-    <input class=\"border rounded-xl p-2\" type=\"date\" name=\"day\" value=\"{{ today }}\"> 
-    <input class=\"border rounded-xl p-2\" type=\"number\" step=\"0.1\" name=\"hours\" placeholder=\"8\"> 
-    <input class=\"border rounded-xl p-2\" type=\"number\" step=\"0.01\" name=\"rate\" placeholder=\"35\"> 
-    <input class=\"border rounded-xl p-2 md:col-span-5\" name=\"notes\" placeholder=\"Notes\"> 
-    <button class=\"bg-slate-900 text-white rounded-xl px-4\">Add</button>
+    <input class="border rounded-xl p-2" type="date" name="day" value="{{ today }}"> 
+    <input class="border rounded-xl p-2" type="number" step="0.1" name="hours" placeholder="8"> 
+    <input class="border rounded-xl p-2" type="number" step="0.01" name="rate" placeholder="35"> 
+    <input class="border rounded-xl p-2 md:col-span-5" name="notes" placeholder="Notes"> 
+    <button class="bg-slate-900 text-white rounded-xl px-4">Add</button>
   </form>
 </div>
-<div class=\"bg-white rounded-2xl p-4 shadow\">
-  <table class=\"w-full text-sm\">
-    <thead><tr class=\"text-left text-slate-500\"><th>Employee</th><th>Job</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Approved</th><th></th></tr></thead>
+<div class="bg-white rounded-2xl p-4 shadow">
+  <table class="w-full text-sm">
+    <thead><tr class="text-left text-slate-500"><th>Employee</th><th>Job</th><th>Date</th><th>Hours</th><th>Rate</th><th>$</th><th>Approved</th><th></th></tr></thead>
     <tbody>
       {% for r in rows %}
-      <tr class=\"border-t\"><td class=\"py-2\">{{ r['employee'] }}</td><td>{{ r['job_title'] or '' }}</td><td>{{ r['day'] }}</td><td>{{ r['hours'] }}</td><td>${{ '%.2f' % r['rate'] }}</td><td>${{ '%.2f' % (r['hours']*r['rate']) }}</td><td>{{ 'yes' if r['approved'] else 'no' }}</td>
-        <td class=\"text-right flex gap-2 justify-end\">
+      <tr class="border-t"><td class="py-2">{{ r['employee'] }}</td><td>{{ r['job_title'] or '' }}</td><td>{{ r['day'] }}</td><td>{{ r['hours'] }}</td><td>${{ '%.2f' % r['rate'] }}</td><td>${{ '%.2f' % (r['hours']*r['rate']) }}</td><td>{{ 'yes' if r['approved'] else 'no' }}</td>
+        <td class="text-right flex gap-2 justify-end">
           {% if session['user']['role'] in ['manager','admin'] and not r['approved'] %}
-            <form method=\"post\" action=\"{{ url_for('timesheets_approve', tid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-green-600 text-sm\">Approve</button></form>
+            <form method="post" action="{{ url_for('timesheets_approve', tid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-green-600 text-sm">Approve</button></form>
           {% endif %}
           {% if session['user']['role'] in ['manager','admin'] %}
-            <form method=\"post\" action=\"{{ url_for('timesheets_delete', tid=r['id']) }}\"><input type=\"hidden\" name=\"csrf_token\" value=\"{{ csrf_token() }}\"><button class=\"text-red-600 text-sm\">Delete</button></form>
+            <form method="post" action="{{ url_for('timesheets_delete', tid=r['id']) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="text-red-600 text-sm">Delete</button></form>
           {% endif %}
         </td>
       </tr>
-      {% else %}<tr><td colspan=\"8\" class=\"py-3 text-slate-500\">No entries.</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="8" class="py-3 text-slate-500">No entries.</td></tr>{% endfor %}
     </tbody>
   </table>
-  <div class=\"mt-3\">
+  <div class="mt-3">
     {% if session['user']['role'] in ['manager','admin'] %}
-    <a class=\"text-sm text-slate-500 hover:underline\" href=\"{{ url_for('timesheets_csv') }}\">Export CSV</a>
+    <a class="text-sm text-slate-500 hover:underline" href="{{ url_for('timesheets_csv') }}">Export CSV</a>
     {% endif %}
   </div>
 </div>
