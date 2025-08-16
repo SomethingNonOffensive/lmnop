@@ -22,3 +22,13 @@ python app.py
 ```
 
 `SECRET_KEY` is required so session and CSRF tokens remain valid between restarts.
+
+### Sample data
+
+The first time the app runs it seeds a few test accounts and jobs so you can explore:
+
+- `manager` / `manager` — manager role
+- `alice` / `alice` — worker role
+- `bob` / `bob` — worker role
+
+Two example clients and jobs are also created.
